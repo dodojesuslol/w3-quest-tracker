@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
 from PySide6.QtGui import QBrush, QColor, QFont
+from PySide6.QtWidgets import QTableView
 
 from .. import filtering
 from ..profiles import Profile
 from . import theme
 
 COLUMNS = ["Status", "Quest", "Category", "Region", "Lvl", "Content", "⚠"]
+SHORT_CATEGORY = {**filtering.CATEGORY_LABELS, "contract": "Contract"}
 SHORT_EXPANSION = {"base": "Base", "hearts_of_stone": "HoS", "blood_and_wine": "B&W"}
 COL_STATUS, COL_NAME, COL_CATEGORY, COL_REGION, COL_LEVEL, COL_EXPANSION, COL_MISSABLE = range(7)
 QUEST_ROLE = Qt.UserRole + 1
@@ -75,7 +77,7 @@ class QuestTableModel(QAbstractTableModel):
             if col == COL_NAME:
                 return filtering.display_name(q, self.lang)
             if col == COL_CATEGORY:
-                return filtering.CATEGORY_LABELS[q["category"]]
+                return SHORT_CATEGORY[q["category"]]
             if col == COL_REGION:
                 return filtering.region_of(q)
             if col == COL_LEVEL:
@@ -125,3 +127,24 @@ class QuestTableModel(QAbstractTableModel):
             COL_MISSABLE: lambda q: (not q.get("missable"), name(q)),
         }
         self.rows.sort(key=keys[col], reverse=self._sort_order == Qt.DescendingOrder)
+
+
+class QuestTableView(QTableView):
+    """Gives the name column all spare width, but never less than NAME_MIN_WIDTH.
+
+    Longer names wrap onto a second line; below the minimum a horizontal
+    scrollbar appears instead of squeezing the names.
+    """
+
+    NAME_MIN_WIDTH = 280
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.fit_name_column()
+
+    def fit_name_column(self):
+        hh = self.horizontalHeader()
+        others = sum(hh.sectionSize(c) for c in range(len(COLUMNS)) if c != COL_NAME)
+        avail = self.viewport().width() - others
+        hh.resizeSection(COL_NAME, max(avail, self.NAME_MIN_WIDTH))
+        self.resizeRowsToContents()

@@ -28,7 +28,6 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QSpinBox,
     QSplitter,
-    QTableView,
     QTabWidget,
     QTextBrowser,
     QVBoxLayout,
@@ -41,7 +40,7 @@ from ..filtering import CATEGORY_LABELS, EXPANSION_LABELS, STATUS_LABELS, Criter
 from ..profiles import STATUSES, Profile, ProfileStore
 from ..questdata import QuestDB
 from . import theme
-from .quest_table import COL_LEVEL, COL_NAME, COL_STATUS, QuestTableModel
+from .quest_table import COL_LEVEL, COL_NAME, COL_STATUS, QuestTableModel, QuestTableView
 
 ALL = "__all__"
 
@@ -172,7 +171,7 @@ class MainWindow(QMainWindow):
         splitter.addWidget(self._build_filters())
 
         self.model = QuestTableModel(self.profile, self.config.name_lang)
-        self.table = QTableView()
+        self.table = QuestTableView()
         self.table.setModel(self.model)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -182,8 +181,13 @@ class MainWindow(QMainWindow):
         self.table.verticalHeader().hide()
         self.table.verticalHeader().setDefaultSectionSize(26)
         hh = self.table.horizontalHeader()
+        # The name column takes the spare width; long names wrap onto a second
+        # line instead of being cut off.
         hh.setSectionResizeMode(QHeaderView.ResizeToContents)
-        hh.setSectionResizeMode(COL_NAME, QHeaderView.Stretch)
+        hh.setSectionResizeMode(COL_NAME, QHeaderView.Fixed)
+        self.table.setWordWrap(True)
+        self.table.setTextElideMode(Qt.ElideNone)
+        self.table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         hh.setHighlightSections(False)
         self.table.sortByColumn(COL_NAME, Qt.AscendingOrder)
         self.table.selectionModel().currentRowChanged.connect(self._on_row_changed)
@@ -193,13 +197,13 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setStretchFactor(2, 0)
-        splitter.setSizes([250, 750, 400])
+        splitter.setSizes([210, 870, 320])
         return splitter
 
     def _build_filters(self) -> QWidget:
         w = QWidget()
-        w.setMinimumWidth(220)
-        w.setMaximumWidth(300)
+        w.setMinimumWidth(200)
+        w.setMaximumWidth(260)
         lay = QVBoxLayout(w)
         lay.setContentsMargins(4, 4, 8, 4)
 
@@ -260,7 +264,7 @@ class MainWindow(QMainWindow):
 
     def _build_detail(self) -> QWidget:
         outer = QScrollArea(widgetResizable=True)
-        outer.setMinimumWidth(340)
+        outer.setMinimumWidth(300)
         w = QWidget()
         lay = QVBoxLayout(w)
         lay.setContentsMargins(12, 4, 4, 4)
@@ -335,6 +339,7 @@ class MainWindow(QMainWindow):
     def apply_filters(self) -> None:
         rows = filtering.filter_quests(self.db.quests, self.profile, self.criteria())
         self.model.set_rows(rows)
+        self.table.fit_name_column()
         self.result_count.setText(f"{len(rows)} of {len(self.db.quests)} quests shown")
         self._reselect()
 
