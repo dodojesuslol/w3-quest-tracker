@@ -102,6 +102,25 @@ the base game, Hearts of Stone and Blood and Wine.
 - **Not tested in-game:** "Verified" means confirmed by a source. Edit the
   file to correct or extend it. Rebuilding `quests.json` does not touch it.
 
+## Walkthroughs from the Witcher Wiki
+
+The quest page has a collapsed section, **Walkthrough from the Witcher Wiki
+(spoilers)**.
+
+- **Download:** Only when you expand the section does the app download that
+  one quest's "Walkthrough" and "Notes" sections. It uses the wiki's
+  MediaWiki API, looks the page up by the English quest name, and keeps text
+  only: no images, scripts or styles.
+- **Cache:** Pages are cached gzip-compressed in
+  `~/.cache/w3-quest-tracker/wiki/`. A page is fetched again after 30 days;
+  without a connection, the stale copy is shown. The whole cache is capped
+  at 5 MB, and the oldest entries are removed first.
+- **Clearing:** **⚙ → Clear wiki cache** shows the current size and deletes
+  the folder.
+- **License:** Wiki content is CC BY-SA 3.0. The source page and license are
+  shown under every walkthrough. Nothing from the wiki is stored in the
+  repository or the package.
+
 ## Data locations
 
 | What | Where |
@@ -110,6 +129,7 @@ the base game, Hearts of Stone and Blood and Wine.
 | Unknown quests log | `~/.local/share/w3-quest-tracker/unknown_quests.log` |
 | Settings | `~/.config/w3-quest-tracker/config.json` |
 | Rebuilt quest database (optional) | `~/.local/share/w3-quest-tracker/quests.json` |
+| Wiki walkthrough cache (≤ 5 MB) | `~/.cache/w3-quest-tracker/wiki/` |
 
 ## Rebuilding the quest database
 

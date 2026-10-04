@@ -42,7 +42,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import filtering, paths, savesync
+from .. import filtering, paths, savesync, wiki
 from ..gamefiles.locate import find_save_dirs
 from ..savesync import SaveSnapshot
 from ..watcher import SaveWatcher
@@ -188,9 +188,20 @@ class MainWindow(QMainWindow):
             lang_group.addAction(act)
             m.addAction(act)
         m.addSeparator()
+        self.wiki_cache_action = m.addAction("Clear wiki cache", self._clear_wiki_cache)
+        m.aboutToShow.connect(self._update_wiki_cache_action)
         m.addAction("Show unknown quests log", self._show_unknown_log)
         m.addAction("Quit", QKeySequence.Quit, self.close)
         return m
+
+    def _update_wiki_cache_action(self) -> None:
+        size = wiki.cache_size()
+        self.wiki_cache_action.setText(f"Clear wiki cache ({size / 1024:.0f} KB)")
+        self.wiki_cache_action.setEnabled(size > 0)
+
+    def _clear_wiki_cache(self) -> None:
+        wiki.clear_cache()
+        self.statusBar().showMessage("Wiki cache cleared.", 4000)
 
     def _fill_profile_menu(self) -> None:
         m = self.profile_menu

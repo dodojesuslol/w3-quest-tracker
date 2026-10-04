@@ -5,7 +5,9 @@ from __future__ import annotations
 import html
 from urllib.parse import urlparse
 
-from PySide6.QtCore import Qt, QTimer, Signal
+import time
+
+from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, QTimer, Signal
 from PySide6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
@@ -22,7 +24,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import filtering
+from .. import filtering, wiki
 from ..filtering import CATEGORY_LABELS, EXPANSION_LABELS, STATUS_LABELS
 from ..profiles import STATUSES
 from . import theme
@@ -41,6 +43,29 @@ def _label(text: str = "", name: str | None = None, wrap: bool = True) -> QLabel
         lbl.setObjectName(name)
     lbl.setWordWrap(wrap)
     return lbl
+
+
+class _WikiSignals(QObject):
+    done = Signal(str, object, str, bool)   # quest id, Walkthrough|None, error, from cache
+
+
+class _WikiJob(QRunnable):
+    def __init__(self, signals: _WikiSignals, quest_id: str, title: str, force: bool):
+        super().__init__()
+        self.signals, self.quest_id, self.title, self.force = signals, quest_id, title, force
+
+    def run(self):
+        try:
+            wt, cached = wiki.get(self.quest_id, self.title, self.force)
+            self._emit(wt, "", cached)
+        except Exception as e:  # network errors, unexpected API answers
+            self._emit(None, str(e), False)
+
+    def _emit(self, *args):
+        try:
+            self.signals.done.emit(self.quest_id, *args)
+        except RuntimeError:
+            pass  # page closed meanwhile
 
 
 def sources_html(entry: dict) -> str:
@@ -100,8 +125,30 @@ class QuestPage(QWidget):
         left.addLayout(head)
         self.journal = QTextBrowser()
         self.journal.setOpenLinks(False)
-        left.addWidget(self.journal, 1)
+        left.addWidget(self.journal, 3)
+
+        # walkthrough from the Witcher Fandom wiki, loaded only when expanded
+        wrow = QHBoxLayout()
+        self.wiki_toggle = QPushButton(objectName="ghost", checkable=True)
+        self.wiki_toggle.setCursor(Qt.PointingHandCursor)
+        self.wiki_toggle.toggled.connect(self._on_wiki_toggled)
+        wrow.addWidget(self.wiki_toggle)
+        wrow.addStretch(1)
+        left.addLayout(wrow)
+        self.wiki_view = QTextBrowser()
+        self.wiki_view.setOpenExternalLinks(True)
+        left.addWidget(self.wiki_view, 3)
+        self.wiki_footer = _label(name="muted")
+        self.wiki_footer.setTextFormat(Qt.RichText)
+        self.wiki_footer.linkActivated.connect(self._on_wiki_link)
+        left.addWidget(self.wiki_footer)
         cols.addLayout(left, 3)
+        self._wiki_signals = _WikiSignals(self)
+        self._wiki_signals.done.connect(self._on_wiki_done)
+        self._wiki_pool = QThreadPool(self)
+        self._wiki_pool.setMaxThreadCount(1)
+        self._wiki_loaded_for: str | None = None
+        self._set_wiki_expanded(False)
 
         # right: status, warnings, notes, info
         right_area = QScrollArea(widgetResizable=True)
@@ -209,6 +256,10 @@ class QuestPage(QWidget):
             self.notes.setPlainText(profile.notes.get(q["id"], ""))
             self._render_info()
             self._render_journal()
+            if self._wiki_loaded_for != q["id"]:
+                self._wiki_loaded_for = None
+                if self.wiki_toggle.isChecked():
+                    self._load_wiki()
         finally:
             self._loading = False
 
@@ -337,6 +388,55 @@ class QuestPage(QWidget):
         parts.append(f'<p style="color:{muted}; font-size:11pt">✓ done · ▸ active · ✗ failed · ○ inactive</p>')
         parts.append("</div>")
         self.journal.setHtml("".join(parts))
+
+    # ------------------------------------------------------------ wiki
+
+    def _set_wiki_expanded(self, on: bool) -> None:
+        arrow = "▾" if on else "▸"
+        self.wiki_toggle.setText(f"{arrow}  Walkthrough from the Witcher Wiki (spoilers)")
+        self.wiki_view.setVisible(on)
+        self.wiki_footer.setVisible(on)
+
+    def _on_wiki_toggled(self, on: bool) -> None:
+        self._set_wiki_expanded(on)
+        if on and self.quest and self._wiki_loaded_for != self.quest["id"]:
+            self._load_wiki()
+
+    def _load_wiki(self, force: bool = False) -> None:
+        q = self.quest
+        self._wiki_loaded_for = q["id"]
+        self.wiki_view.setHtml(f'<p style="color:{theme.MUTED}">Loading walkthrough…</p>')
+        self.wiki_footer.setText("")
+        self._wiki_pool.start(_WikiJob(self._wiki_signals, q["id"], q["name"], force))
+
+    def _on_wiki_done(self, quest_id: str, wt, error: str, cached: bool) -> None:
+        if not self.quest or quest_id != self.quest["id"]:
+            return  # user moved on to another quest
+        muted = theme.MUTED
+        if wt is None:
+            self._wiki_loaded_for = None
+            self.wiki_view.setHtml(f'<p style="color:{theme.ACCENT}">Could not load the walkthrough.</p>'
+                                   f'<p style="color:{muted}">{html.escape(error)}</p>')
+            self.wiki_footer.setText(f'<a href="reload" style="color:{theme.ACCENT}">Try again</a>')
+            return
+        if not wt.found:
+            self.wiki_view.setHtml(
+                f'<p style="color:{muted}">No walkthrough section found on the wiki for this quest.</p>'
+                f'<p><a href="{wt.url}" style="color:{theme.ACCENT}">Search the Witcher Wiki</a></p>')
+        else:
+            self.wiki_view.setHtml(f'<div style="color:{theme.TEXT}; font-size:12.5pt">{wt.html}</div>')
+        when = time.strftime("%d.%m.%Y", time.localtime(wt.fetched))
+        self.wiki_footer.setText(
+            f'Source: <a href="{wt.url}" style="color:{muted}">Witcher Wiki – {html.escape(wt.title)}</a>, '
+            f'<a href="{wiki.LICENSE_URL}" style="color:{muted}">{wiki.LICENSE}</a> · '
+            f'{"cached " if cached else "fetched "}{when} · '
+            f'<a href="reload" style="color:{theme.ACCENT}">Reload</a>')
+
+    def _on_wiki_link(self, href: str) -> None:
+        if href == "reload":
+            self._load_wiki(force=True)
+        else:
+            self._on_link(href)
 
     # ------------------------------------------------------------ events
 
