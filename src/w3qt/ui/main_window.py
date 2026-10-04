@@ -5,11 +5,12 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from PySide6.QtCore import QItemSelectionModel, Qt, QTimer
+from PySide6.QtCore import QEvent, QItemSelectionModel, Qt, QTimer
 from PySide6.QtGui import QAction, QActionGroup, QDesktopServices, QKeySequence, QPixmap
 from PySide6.QtCore import QDir, QUrl
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QButtonGroup,
     QCheckBox,
     QComboBox,
@@ -130,6 +131,7 @@ class MainWindow(QMainWindow):
         self.watcher.busy.connect(lambda msg: self.statusBar().showMessage(msg))
 
         self._build_shortcuts()
+        QApplication.instance().installEventFilter(self)  # mouse back button
         self._reload_profiles()
         self.refresh_all()
         self._start_watching()
@@ -257,15 +259,25 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setStretchFactor(2, 0)
-        splitter.setSizes([225, 875, 300])
+        splitter.setSizes([238, 862, 300])
         return splitter
 
     def _build_filters(self) -> QWidget:
         w = QWidget()
-        w.setMinimumWidth(215)
+        w.setMinimumWidth(232)
         w.setMaximumWidth(260)
         lay = QVBoxLayout(w)
         lay.setContentsMargins(4, 4, 8, 4)
+
+        head = QHBoxLayout()
+        head.addWidget(_section("Filters"))
+        head.addStretch(1)
+        self.clear_filters = QPushButton(objectName="ghost")
+        self.clear_filters.setCursor(Qt.PointingHandCursor)
+        self.clear_filters.setToolTip("Show all quests again")
+        self.clear_filters.clicked.connect(self._reset_filters)
+        head.addWidget(self.clear_filters)
+        lay.addLayout(head)
 
         self.search = QLineEdit(placeholderText="Search quest name…", clearButtonEnabled=True)
         self.search.textChanged.connect(self.apply_filters)
@@ -312,10 +324,6 @@ class MainWindow(QMainWindow):
         self.f_missable = QCheckBox("Missable quests only")
         self.f_missable.toggled.connect(self.apply_filters)
         lay.addWidget(self.f_missable)
-
-        reset = QPushButton("Reset filters")
-        reset.clicked.connect(self._reset_filters)
-        lay.addWidget(reset)
 
         self.result_count = _muted()
         lay.addWidget(self.result_count)
@@ -396,7 +404,7 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.d_empty)
         outer.setWidget(w)
         self._detail_widgets = [self.d_title, self.d_alt, self.d_meta, self.d_more, self.d_status, self.d_effective,
-                                self.d_desc, self.d_notes, self.d_ids, self.d_status_label,
+                                self.d_desc, self.d_notes, self.d_ids, self.d_status_label, self.d_reset,
                                 self.d_desc_label, self.d_notes_label]
         self._show_detail(None)
         return outer
@@ -590,7 +598,12 @@ class MainWindow(QMainWindow):
         rows = filtering.filter_quests(self.db.quests, self.profile, self.criteria())
         self.model.set_rows(rows)
         self.table.fit_name_column()
-        self.result_count.setText(f"{len(rows)} of {len(self.db.quests)} quests shown")
+        self.result_count.setText(f"{len(rows)} of {len(self.db.quests)} shown")
+        c = self.criteria()
+        active = sum(bool(x) for x in (c.text, c.categories, c.regions, c.expansions, c.statuses,
+                                         c.missable_only)) + (c.level_min is not None or c.level_max is not None)
+        self.clear_filters.setText(f"✕ Clear ({active})")
+        self.clear_filters.setVisible(active > 0)
         self._reselect()
 
     def refresh_all(self) -> None:
@@ -715,6 +728,13 @@ class MainWindow(QMainWindow):
         self.page.show_quest(q, self.db, self.profile, self.config.name_lang, self._entry_status())
         self.stack.setCurrentWidget(self.page)
         self.page.setFocus()
+
+    def eventFilter(self, obj, event):
+        if (event.type() == QEvent.MouseButtonPress and event.button() == Qt.BackButton
+                and self.stack.currentWidget() is self.page):
+            self.page.go_back()
+            return True
+        return super().eventFilter(obj, event)
 
     def close_page(self) -> None:
         self.stack.setCurrentWidget(self.tabs)
@@ -919,6 +939,7 @@ class MainWindow(QMainWindow):
         self.apply_filters()
 
     def closeEvent(self, event) -> None:
+        QApplication.instance().removeEventFilter(self)
         self.watcher.shutdown()
         self._flush_note()
         self._persist()

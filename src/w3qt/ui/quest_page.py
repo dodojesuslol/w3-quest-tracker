@@ -66,11 +66,16 @@ class QuestPage(QWidget):
         root.setContentsMargins(4, 4, 4, 4)
         root.setSpacing(6)
 
+        # breadcrumb: "‹ Quest list / <quest>"
         top = QHBoxLayout()
-        back = QPushButton("‹  Back to quests")
-        back.setToolTip("Back to the quest list (Esc)")
+        top.setSpacing(6)
+        back = QPushButton("‹  Quest list", objectName="ghost")
+        back.setCursor(Qt.PointingHandCursor)
+        back.setToolTip("Back to the quest list (Esc or mouse back button)")
         back.clicked.connect(self.go_back)
         top.addWidget(back)
+        self.crumb = _label(name="muted", wrap=False)
+        top.addWidget(self.crumb)
         top.addStretch(1)
         root.addLayout(top)
 
@@ -180,6 +185,7 @@ class QuestPage(QWidget):
         try:
             lang, profile = self._lang, self._profile
             self.title.setText(filtering.display_name(q, lang))
+            self.crumb.setText(f"/  {CATEGORY_LABELS[q['category']]}  /  {self.title.text()}")
             alt = q["name"] if lang == "de" else q.get("name_de")
             self.alt.setText(alt if alt and alt != self.title.text() else "")
             self.alt.setVisible(bool(self.alt.text()))

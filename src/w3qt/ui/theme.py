@@ -102,6 +102,12 @@ QPushButton#primary {{
     background: {ACCENT}; border: 1px solid #5e1210; color: #f6ead0; font-weight: 600; padding: 4px 14px;
 }}
 QPushButton#primary:hover {{ background: {ACCENT_HI}; }}
+QPushButton#ghost {{
+    background: transparent; border: none; border-bottom: 1px solid transparent; border-radius: 0;
+    color: {ACCENT}; padding: 2px 4px; font-weight: 600;
+}}
+QPushButton#ghost:hover {{ border-bottom: 1px solid {ACCENT}; background: rgba(138, 31, 26, 0.07); }}
+QPushButton#ghost:pressed {{ background: rgba(138, 31, 26, 0.15); }}
 QPushButton#linkButton {{
     background: transparent; border: none; color: {ACCENT}; text-decoration: underline; padding: 0;
 }}
