@@ -59,11 +59,11 @@ class TestFiltering(unittest.TestCase):
         cls.db = questdata.load()
 
     def test_overlay_merged(self):
-        q = self.db.by_id["cgoldfriends"]
+        q = self.db.by_id["sq202yen"]
         self.assertTrue(q["missable"])
-        self.assertEqual(q["point_of_no_return"], "q403battle")
-        self.assertFalse(q["verified"])
-        self.assertEqual(len(self.db.points_of_no_return), 3)
+        self.assertEqual(q["point_of_no_return"], "q401_konsylium")
+        self.assertTrue(q["sources"])
+        self.assertEqual(len(self.db.points_of_no_return), 15)
 
     def test_search_both_languages(self):
         p = Profile("x")
@@ -87,7 +87,7 @@ class TestFiltering(unittest.TestCase):
         res = filtering.filter_quests(self.db.quests, p, Criteria(missable_only=True, statuses={"not_started"}))
         ids = {q["id"] for q in res}
         self.assertNotIn("mq0003freshwater", ids)
-        self.assertIn("cgoldfriends", ids)
+        self.assertIn("sq202yen", ids)
 
     def test_sorting(self):
         qs = sorted(self.db.quests, key=filtering.sort_key("level"))
@@ -107,10 +107,18 @@ class TestFiltering(unittest.TestCase):
 
     def test_open_missables(self):
         p = Profile("x")
-        before = filtering.open_missables(self.db, p, "q002bandits")
+        before = filtering.open_missables(self.db, p, "q001yennsearch")
         p.set_manual("mq0003freshwater", "completed")
-        after = filtering.open_missables(self.db, p, "q002bandits")
+        after = filtering.open_missables(self.db, p, "q001yennsearch")
         self.assertEqual(len(before) - 1, len(after))
+
+    def test_ponr_trigger(self):
+        p = Profile("x")
+        start = {"quest_id": "q402ciri", "trigger": "start"}
+        complete = {"quest_id": "q402ciri", "trigger": "complete"}
+        p.set_manual("q402ciri", "in_progress")
+        self.assertTrue(filtering.ponr_passed(p, start))
+        self.assertFalse(filtering.ponr_passed(p, complete))
 
 
 if __name__ == "__main__":

@@ -1,37 +1,596 @@
 {
-  "schema": 1,
-  "note": "Hand-curated overlay merged onto quests.json at load time. Entries come from Claude's general knowledge of the game, not from game files, and are all unverified. Correct or extend them as you play.",
+  "schema": 2,
+  "note": "Hand-curated overlay merged onto quests.json at load time. Every entry was checked against the listed web sources (October 2026). 'verified' means confirmed by at least one source, not tested in-game. Where sources disagree, the earlier cutoff is used and 'note' explains the conflict.",
   "points_of_no_return": [
     {
-      "quest_id": "q002bandits",
-      "effect": "Completing this quest takes Geralt from White Orchard to Vizima. White Orchard cannot be revisited afterwards (until a late story visit), so its open side quests fail.",
-      "source": "claude-knowledge",
-      "verified": false
+      "quest_id": "q001yennsearch",
+      "trigger": "complete",
+      "effect": "Completing this quest ends the prologue. White Orchard can be revisited later and its treasure hunts stay available, but its unfinished side quests fail.",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://gamefaqs.gamespot.com/boards/702760-the-witcher-3-wild-hunt/71847530"
+      ],
+      "verified": true
     },
     {
-      "quest_id": "q403battle",
-      "effect": "Vesemir dies during the battle. Anything that needs him, such as winning his Gwent card, is lost afterwards.",
-      "source": "claude-knowledge",
-      "verified": false
+      "quest_id": "q401_konsylium",
+      "trigger": "start",
+      "effect": "Starting this quest fails 'Following the Thread'; 'The Last Wish' fails once Uma is fetched from Crow's Perch during it.",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    {
+      "quest_id": "sq101keira",
+      "trigger": "start",
+      "effect": "Starting this quest fails 'Lynch Mob'.",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    {
+      "quest_id": "sq301triss",
+      "trigger": "start",
+      "effect": "The Gwent cards from the Vegelbud masquerade (Milva, Vampire: Bruxa, Dandelion) are lost once you leave the party.",
+      "sources": [
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/witcher-3-missable-gwent-cards-safe-collection-order"
+      ],
+      "verified": true
+    },
+    {
+      "quest_id": "q402ciri",
+      "trigger": "start",
+      "effect": "Boarding the boat to the Isle of Mists fails a large set of Novigrad, Velen and Skellige quests (Keira, Triss, Ciri's Room, Reardon, Crookback Bog, assassination plot and more).",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide"
+      ],
+      "verified": true
+    },
+    {
+      "quest_id": "q206berserkers",
+      "trigger": "start",
+      "effect": "Starting this quest closes 'Stranger in a Strange Land' and 'The Cave of Dreams' (per Consolepulse; TheGamer places the cutoff at 'Battle Preparations').",
+      "sources": [
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide",
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    {
+      "quest_id": "q501eredin",
+      "trigger": "start",
+      "effect": "'Reason of State' fails at this point.",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
     },
     {
       "quest_id": "q210preparations",
-      "effect": "The game shows a point-of-no-return warning before the final act. Many open secondary quests can no longer be completed afterwards.",
-      "source": "claude-knowledge",
-      "verified": false
+      "trigger": "start",
+      "effect": "Final-act cutoff listed by TheGamer for the remaining Skellige quests.",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    {
+      "quest_id": "q603bank",
+      "trigger": "start",
+      "effect": "'Avid Collector' (Borsodi auction) and the treasure hunt 'A Dark Legacy' fail at this point.",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-hearts-of-stone-achievements-missables-guide"
+      ],
+      "verified": true
+    },
+    {
+      "quest_id": "q602wedding",
+      "trigger": "complete",
+      "effect": "'A Midnight Clear' is only available during the Brunwich wedding (Consolepulse; TheGamer places the cutoff at 'Scenes From a Marriage').",
+      "sources": [
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-hearts-of-stone-achievements-missables-guide",
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    {
+      "quest_id": "q702lairofbeast",
+      "trigger": "start",
+      "effect": "'The Hunger Game' and 'Amidst the Mill's Grist' fail at this point.",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    {
+      "quest_id": "q703allforone",
+      "trigger": "start",
+      "effect": "'The Warble of a Smitten Knight' fails at this point.",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    {
+      "quest_id": "q704bfairyland",
+      "trigger": "complete",
+      "effect": "'Duck, Duck, Goosed!' must be finished before leaving the Land of a Thousand Fables.",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    {
+      "quest_id": "q705prison",
+      "trigger": "complete",
+      "effect": "'The Perks of Being a Jailbird' is only possible while Geralt is imprisoned.",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    {
+      "quest_id": "q504ciriempress",
+      "trigger": "complete",
+      "effect": "'Faithful Friend' is only available in this ending, just before the game closes.",
+      "sources": [
+        "https://game-checklists.com/witcher3/all-side-quests-checklist.html"
+      ],
+      "verified": true
     }
   ],
   "quests": {
-    "mq0003freshwater": {"missable": true, "missable_reason": "White Orchard quest; fails when you leave White Orchard.", "point_of_no_return": "q002bandits", "source": "claude-knowledge", "verified": false},
-    "mq0004lockedshed": {"missable": true, "missable_reason": "White Orchard quest; fails when you leave White Orchard.", "point_of_no_return": "q002bandits", "source": "claude-knowledge", "verified": false},
-    "mq0001battlefieldmother": {"missable": true, "missable_reason": "White Orchard quest; fails when you leave White Orchard.", "point_of_no_return": "q002bandits", "source": "claude-knowledge", "verified": false},
-    "q002healingwoman": {"missable": true, "missable_reason": "White Orchard quest; fails when you leave White Orchard.", "point_of_no_return": "q002bandits", "source": "claude-knowledge", "verified": false},
-    "mq0002thefield": {"missable": true, "missable_reason": "White Orchard quest; fails when you leave White Orchard.", "point_of_no_return": "q002bandits", "source": "claude-knowledge", "verified": false},
-    "mq0005dwarfsmith": {"missable": true, "missable_reason": "White Orchard quest; fails when you leave White Orchard.", "point_of_no_return": "q002bandits", "source": "claude-knowledge", "verified": false},
-    "lwprologuedeserterstash": {"missable": true, "missable_reason": "White Orchard treasure; unreachable once you leave White Orchard.", "point_of_no_return": "q002bandits", "source": "claude-knowledge", "verified": false},
-    "lwprologuebandittreasure": {"missable": true, "missable_reason": "White Orchard treasure; unreachable once you leave White Orchard.", "point_of_no_return": "q002bandits", "source": "claude-knowledge", "verified": false},
-    "lwprologuetemeriantreasure": {"missable": true, "missable_reason": "White Orchard treasure; unreachable once you leave White Orchard.", "point_of_no_return": "q002bandits", "source": "claude-knowledge", "verified": false},
-    "cgoldfriends": {"missable": true, "missable_reason": "Needs a Gwent card won from Vesemir, who dies in the Battle of Kaer Morhen.", "point_of_no_return": "q403battle", "source": "claude-knowledge", "verified": false},
-    "cgmetagatherall": {"missable": true, "missable_reason": "Several unique cards can only be won from NPCs who die or leave during the story (e.g. Vesemir).", "point_of_no_return": "q403battle", "source": "claude-knowledge", "verified": false}
+    "mq0004lockedshed": {
+      "missable": true,
+      "missable_reason": "White Orchard side quest; fails when 'Lilac and Gooseberries' is completed.",
+      "point_of_no_return": "q001yennsearch",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "mq0001battlefieldmother": {
+      "missable": true,
+      "missable_reason": "White Orchard side quest; fails when 'Lilac and Gooseberries' is completed.",
+      "point_of_no_return": "q001yennsearch",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "q002healingwoman": {
+      "missable": true,
+      "missable_reason": "White Orchard side quest; fails when 'Lilac and Gooseberries' is completed.",
+      "point_of_no_return": "q001yennsearch",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "mq0002thefield": {
+      "missable": true,
+      "missable_reason": "White Orchard side quest; fails when 'Lilac and Gooseberries' is completed.",
+      "point_of_no_return": "q001yennsearch",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "mq0005dwarfsmith": {
+      "missable": true,
+      "missable_reason": "White Orchard side quest; fails when 'Lilac and Gooseberries' is completed.",
+      "point_of_no_return": "q001yennsearch",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "mq0003freshwater": {
+      "missable": true,
+      "missable_reason": "Only available while 'Lilac and Gooseberries' is active.",
+      "point_of_no_return": "q001yennsearch",
+      "sources": [
+        "https://thewitcher3.wiki.fextralife.com/Contract:Devil+by+The+Well",
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true,
+      "note": "Sources disagree: Fextralife ties it to 'Lilac and Gooseberries', TheGamer lists it failing at 'On Thin Ice'. The earlier point is used."
+    },
+    "sq106killbill": {
+      "missable": true,
+      "missable_reason": "Fails when 'Ugly Baby' starts.",
+      "point_of_no_return": "q401_konsylium",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "sq202yen": {
+      "missable": true,
+      "missable_reason": "Fails when Uma is fetched from Crow's Perch during 'Ugly Baby'.",
+      "point_of_no_return": "q401_konsylium",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "mq1015lynch": {
+      "missable": true,
+      "missable_reason": "Fails when 'A Favor for a Friend' starts.",
+      "point_of_no_return": "sq101keira",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "q106tower": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide"
+      ],
+      "verified": true
+    },
+    "sq101keira": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide"
+      ],
+      "verified": true
+    },
+    "q109wrapup": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "q104postmine": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "q106findkeira": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "q103ciriroom": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide"
+      ],
+      "verified": true
+    },
+    "sq102dolores": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide"
+      ],
+      "verified": true
+    },
+    "sq102letho": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "q107swamps": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide"
+      ],
+      "verified": true
+    },
+    "sq301triss": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide"
+      ],
+      "verified": true
+    },
+    "q309mages": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide"
+      ],
+      "verified": true
+    },
+    "sq315talar": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide"
+      ],
+      "verified": true
+    },
+    "sq312vincentves": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide"
+      ],
+      "verified": true
+    },
+    "sq302philippa": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide"
+      ],
+      "verified": true
+    },
+    "sq310dangerousgame": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide"
+      ],
+      "verified": true
+    },
+    "sq303brothel": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide"
+      ],
+      "verified": true
+    },
+    "q308psycho": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide"
+      ],
+      "verified": true
+    },
+    "mq3036rosaromance": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide"
+      ],
+      "verified": true
+    },
+    "mq4005sword": {
+      "missable": true,
+      "missable_reason": "Fails when you sail to the Isle of Mists.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide"
+      ],
+      "verified": true
+    },
+    "giant": {
+      "missable": true,
+      "missable_reason": "Skellige quest that fails at a story cutoff.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide",
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true,
+      "note": "Sources disagree: Consolepulse lists it failing at 'The Isle of Mists', TheGamer at 'Battle Preparations'. The earlier point is used."
+    },
+    "q203him": {
+      "missable": true,
+      "missable_reason": "Skellige quest that fails at a story cutoff.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide",
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true,
+      "note": "Sources disagree: Consolepulse lists it failing at 'The Isle of Mists', TheGamer at 'Battle Preparations'. The earlier point is used."
+    },
+    "q206berserkers": {
+      "missable": true,
+      "missable_reason": "Skellige quest that fails at a story cutoff.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide",
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true,
+      "note": "Sources disagree: Consolepulse lists it failing at 'The Isle of Mists', TheGamer at 'Battle Preparations'. The earlier point is used."
+    },
+    "q208heroesmead": {
+      "missable": true,
+      "missable_reason": "Skellige quest that fails at a story cutoff.",
+      "point_of_no_return": "q402ciri",
+      "sources": [
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide",
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true,
+      "note": "Sources disagree: Consolepulse lists it failing at 'The Isle of Mists', TheGamer at 'Battle Preparations'. The earlier point is used."
+    },
+    "sq209weregild": {
+      "missable": true,
+      "missable_reason": "Closes when 'King's Gambit' starts.",
+      "point_of_no_return": "q206berserkers",
+      "sources": [
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide",
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true,
+      "note": "TheGamer places the cutoff later, at 'Battle Preparations'."
+    },
+    "sq209weregildb": {
+      "missable": true,
+      "missable_reason": "Closes when 'King's Gambit' starts.",
+      "point_of_no_return": "q206berserkers",
+      "sources": [
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide",
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true,
+      "note": "TheGamer places the cutoff later, at 'Battle Preparations'."
+    },
+    "mq3035_emhyr": {
+      "missable": true,
+      "missable_reason": "Fails at 'On Thin Ice'.",
+      "point_of_no_return": "q501eredin",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "cgmetagatherall": {
+      "missable": true,
+      "missable_reason": "Needs the Vegelbud masquerade cards (Milva, Vampire: Bruxa, Dandelion) and the four High Stakes leader cards, which cannot be obtained later.",
+      "point_of_no_return": "sq301triss",
+      "sources": [
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/witcher-3-missable-gwent-cards-safe-collection-order"
+      ],
+      "verified": true
+    },
+    "sq306maverick": {
+      "missable": true,
+      "missable_reason": "Losing or abandoning the tournament ends it; its leader-card rewards are then lost.",
+      "point_of_no_return": null,
+      "sources": [
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-missable-achievements-point-of-no-return-guide"
+      ],
+      "verified": true
+    },
+    "q603painting": {
+      "missable": true,
+      "missable_reason": "Only available during the Borsodi auction.",
+      "point_of_no_return": "q603bank",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/",
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-hearts-of-stone-achievements-missables-guide"
+      ],
+      "verified": true
+    },
+    "ep1poi26b": {
+      "missable": true,
+      "missable_reason": "Fails at 'Open Sesame!'.",
+      "point_of_no_return": "q603bank",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "q602romance": {
+      "missable": true,
+      "missable_reason": "Only available during the Brunwich wedding.",
+      "point_of_no_return": "q602wedding",
+      "sources": [
+        "https://consolepulse.com/multiplatform/the-witcher/guides/the-witcher-3-hearts-of-stone-achievements-missables-guide",
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true,
+      "note": "TheGamer lists 'Scenes From a Marriage' as the cutoff instead."
+    },
+    "q702wightdecision": {
+      "missable": true,
+      "missable_reason": "Fails at 'Where Children Toil, Toys Waste Away'.",
+      "point_of_no_return": "q702lairofbeast",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "q702mill": {
+      "missable": true,
+      "missable_reason": "Only possible between 'La Cage au Fou' and 'Where Children Toil, Toys Waste Away'.",
+      "point_of_no_return": "q702lairofbeast",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "sq701tournament": {
+      "missable": true,
+      "missable_reason": "Only possible before 'Capture the Castle'.",
+      "point_of_no_return": "q703allforone",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "q704ftgoose": {
+      "missable": true,
+      "missable_reason": "Only possible inside the Land of a Thousand Fables.",
+      "point_of_no_return": "q704bfairyland",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "q705prisonstash": {
+      "missable": true,
+      "missable_reason": "Only possible while Geralt is imprisoned.",
+      "point_of_no_return": "q705prison",
+      "sources": [
+        "https://www.thegamer.com/witcher-3-autofail-quests/"
+      ],
+      "verified": true
+    },
+    "mq5004horse": {
+      "missable": true,
+      "missable_reason": "Only available in the Empress ending, just before the game closes.",
+      "point_of_no_return": "q504ciriempress",
+      "sources": [
+        "https://game-checklists.com/witcher3/all-side-quests-checklist.html"
+      ],
+      "verified": true
+    }
   }
 }

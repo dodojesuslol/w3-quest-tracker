@@ -48,7 +48,8 @@ class TestQuestsJson(unittest.TestCase):
         for q in self.db.quests:
             self.assertIsNone(q["quest_giver"])
             if q["missable"] is not None:  # only from the hand-curated overlay
-                self.assertEqual((q["source"], q["verified"]), ("claude-knowledge", False))
+                self.assertTrue(q["sources"], q["id"])
+                self.assertTrue(all(u.startswith("https://") for u in q["sources"]))
 
 
 class TestMapping(unittest.TestCase):

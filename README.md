@@ -88,13 +88,19 @@ For GOG (Heroic or Lutris) or any other location, pick the folder via
 
 ## Missable quests
 
-The game files do not say which quests can be missed. A small hand-curated
-list lives in `src/w3qt/data/missable.json`. It covers the White Orchard side
-quests, Vesemir's Gwent card and the three main points of no return.
+The game files do not say which quests can be missed. A curated list lives in
+`src/w3qt/data/missable.json`: 46 quests and 15 points of no return across
+the base game, Hearts of Stone and Blood and Wine.
 
-Every entry is marked `"verified": false`, and the app labels these warnings
-as unverified. Edit the file to correct or extend the list. Rebuilding
-`quests.json` does not touch it.
+- **Sources:** Every entry carries the URLs it was checked against. The app
+  shows them as links.
+- **Conflicts:** Where sources disagree, the earlier cutoff is used, and a
+  `note` explains the difference.
+- **Triggers:** Each point of no return has a `trigger`. With `start`, the
+  quests fail as soon as the main quest begins. With `complete`, they fail
+  only when it is finished.
+- **Not tested in-game:** "Verified" means confirmed by a source. Edit the
+  file to correct or extend it. Rebuilding `quests.json` does not touch it.
 
 ## Data locations
 

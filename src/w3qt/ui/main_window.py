@@ -309,6 +309,7 @@ class MainWindow(QMainWindow):
         self.d_warning = QFrame(objectName="warning")
         wl = QVBoxLayout(self.d_warning)
         self.d_warning_text = QLabel(wordWrap=True)
+        self.d_warning_text.setOpenExternalLinks(True)
         self.d_warning_text.setTextFormat(Qt.RichText)
         wl.addWidget(self.d_warning_text)
         lay.addWidget(self.d_warning)
@@ -565,23 +566,27 @@ class MainWindow(QMainWindow):
         lay.setSpacing(12)
         lay.addWidget(_muted(
             "Story points after which some quests can no longer be completed. "
-            "This data is hand-curated and UNVERIFIED — check before relying on it."))
+            "Each entry is backed by the linked web sources; none of it is read from the game files."))
         lang = self.config.name_lang
         for p in self.db.points_of_no_return:
             q = self.db.by_id[p["quest_id"]]
             status = self.profile.status(q["id"])
             box = QGroupBox(f"{filtering.display_name(q, lang)}  —  {STATUS_LABELS[status]}")
             bl = QVBoxLayout(box)
-            bl.addWidget(QLabel(p["effect"], wordWrap=True))
+            when = "starting" if p.get("trigger") == "start" else "completing"
+            effect = QLabel(f"<b>Triggered by {when} this quest.</b> {p['effect']}<br>{self._sources_html(p)}",
+                            wordWrap=True)
+            effect.setOpenExternalLinks(True)
+            bl.addWidget(effect)
             missables = self.db.missables_for(q["id"])
             open_ = [m for m in missables if self.profile.status(m["id"]) not in filtering.DONE]
-            if open_ and status not in filtering.DONE:
+            passed = filtering.ponr_passed(self.profile, p)
+            if open_ and not passed:
                 warn = QFrame(objectName="warning")
                 QVBoxLayout(warn).addWidget(QLabel(
-                    f"<b>{len(open_)} missable quest(s) still open.</b> Finish them before completing this quest.",
+                    f"<b>{len(open_)} missable quest(s) still open.</b> Finish them before {when} this quest.",
                     wordWrap=True))
                 bl.addWidget(warn)
-            passed = status == "completed"
             missed = [m for m in open_ if passed]
             if missed:
                 bl.addWidget(QLabel(
@@ -602,6 +607,13 @@ class MainWindow(QMainWindow):
             lay.addWidget(box)
         lay.addStretch(1)
         self.ponr_tab.setWidget(w)
+
+    @staticmethod
+    def _sources_html(entry: dict) -> str:
+        from urllib.parse import urlparse
+        links = [f'<a href="{u}" style="color:{theme.MUTED}">{urlparse(u).netloc.removeprefix("www.")}</a>'
+                 for u in entry.get("sources", [])]
+        return f'<span style="color:{theme.MUTED}">Sources: {", ".join(links) or "none"}</span>'
 
     # ------------------------------------------------------------ detail
 
@@ -644,8 +656,9 @@ class MainWindow(QMainWindow):
                 text = f"<b>⚠ Missable.</b> {q.get('missable_reason') or ''}"
                 if ponr:
                     text += f"<br>Do it before: <b>{filtering.display_name(ponr, lang)}</b>"
-                if not q.get("verified"):
-                    text += f'<br><span style="color:{theme.MUTED}">Unverified ({q.get("source")}).</span>'
+                if q.get("note"):
+                    text += f'<br><span style="color:{theme.MUTED}">{q["note"]}</span>'
+                text += "<br>" + self._sources_html(q)
                 self.d_warning_text.setText(text)
             manual = self.profile.manual_status.get(q["id"])
             self.d_status.setCurrentIndex(self.d_status.findData(manual) if manual else 0)

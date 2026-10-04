@@ -17,7 +17,7 @@ def default_path() -> Path:
     """A quests.json rebuilt into the user data dir overrides the bundled one."""
     user = paths.data_dir() / "quests.json"
     return user if user.is_file() else BUNDLED_PATH
-OVERLAY_FIELDS = ("missable", "missable_reason", "point_of_no_return", "source", "verified")
+OVERLAY_FIELDS = ("missable", "missable_reason", "point_of_no_return", "sources", "verified", "note")
 
 # save journal status -> tracker status
 # JS_Inactive entries exist in the journal but are not shown to the player,

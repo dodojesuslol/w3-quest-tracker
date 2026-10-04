@@ -107,5 +107,13 @@ def progress(quests: list[dict], profile: Profile, key=None) -> dict[str, Progre
     return {k: Progress(dones[k], totals[k]) for k in totals}
 
 
+def ponr_passed(profile: Profile, ponr: dict) -> bool:
+    """A start-triggered point is passed once the quest is active, otherwise on completion."""
+    status = profile.status(ponr["quest_id"])
+    if ponr.get("trigger") == "start":
+        return status in ("in_progress", "completed")
+    return status == "completed"
+
+
 def open_missables(db, profile: Profile, ponr_quest_id: str) -> list[dict]:
     return [q for q in db.missables_for(ponr_quest_id) if profile.status(q["id"]) not in DONE]
