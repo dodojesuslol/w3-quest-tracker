@@ -19,7 +19,8 @@ class Profile:
     manual_status: dict[str, str] = field(default_factory=dict)
     save_status: dict[str, str] = field(default_factory=dict)
     notes: dict[str, str] = field(default_factory=dict)
-    save_dir: str | None = None                # per-profile override (phase 4)
+    playthrough_id: str | None = None          # save playthrough this profile follows
+    last_save: dict | None = None              # info about the last synced save
     created: float = field(default_factory=time.time)
 
     def status(self, quest_id: str) -> str:
@@ -55,7 +56,8 @@ class Profile:
         p.manual_status = {k: v for k, v in d.get("manual_status", {}).items() if v in STATUSES}
         p.save_status = {k: v for k, v in d.get("save_status", {}).items() if v in STATUSES}
         p.notes = {k: str(v) for k, v in d.get("notes", {}).items()}
-        p.save_dir = d.get("save_dir")
+        p.playthrough_id = d.get("playthrough_id")
+        p.last_save = d.get("last_save")
         p.created = float(d.get("created", time.time()))
         return p
 

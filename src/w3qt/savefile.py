@@ -46,6 +46,10 @@ class SaveFormatError(Exception):
     """File is not a Witcher 3 save, or it is truncated (e.g. still being written)."""
 
 
+class UnsupportedSaveVersion(SaveFormatError):
+    """Valid save, but from a game version this parser does not support."""
+
+
 @dataclass
 class Node:
     tag: str
@@ -174,7 +178,7 @@ def parse_bytes(raw: bytes, path: Path | str = "<memory>") -> SaveFile:
         raise SaveFormatError("footer magic SE missing (truncated?)")
     save_version, game_version = struct.unpack_from("<II", data, 4)
     if save_version not in SUPPORTED_SAVE_VERSIONS:
-        raise SaveFormatError(f"unsupported save version {save_version} (supported: {SUPPORTED_SAVE_VERSIONS})")
+        raise UnsupportedSaveVersion(f"unsupported save version {save_version} (supported: {SUPPORTED_SAVE_VERSIONS})")
     str_off, _unk, var_off = struct.unpack_from("<III", data, len(data) - 14)
     str_off -= header_size
     var_off -= header_size

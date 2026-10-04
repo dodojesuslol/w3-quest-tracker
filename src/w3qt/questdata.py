@@ -12,9 +12,10 @@ MISSABLE_PATH = DATA_DIR / "missable.json"
 OVERLAY_FIELDS = ("missable", "missable_reason", "point_of_no_return", "source", "verified")
 
 # save journal status -> tracker status
+# JS_Inactive entries exist in the journal but are not shown to the player,
+# so they carry no status; manual tracking applies for them.
 STATUS_FROM_SAVE = {
     "active": "in_progress",
-    "inactive": "in_progress",  # discovered but currently not active
     "success": "completed",
     "failed": "failed",
 }
@@ -74,5 +75,7 @@ def map_save_quests(db: QuestDB, quest_groups: list[dict]) -> MappingResult:
             if entry is None:
                 unknown.append({"guid": q["guid"], "resource": q["resource"], "status": q["status"]})
                 continue
-            statuses[entry["id"]] = STATUS_FROM_SAVE.get(q["status"], "in_progress")
+            status = STATUS_FROM_SAVE.get(q["status"])
+            if status:
+                statuses[entry["id"]] = status
     return MappingResult(statuses, unknown)

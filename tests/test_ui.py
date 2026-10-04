@@ -1,4 +1,5 @@
 """Offscreen smoke test of the main window."""
+import json
 import os
 import sys
 import tempfile
@@ -21,6 +22,12 @@ class TestMainWindow(unittest.TestCase):
         cls.tmp = tempfile.TemporaryDirectory()
         os.environ["XDG_DATA_HOME"] = str(Path(cls.tmp.name) / "data")
         os.environ["XDG_CONFIG_HOME"] = str(Path(cls.tmp.name) / "config")
+        # point the watcher at an empty folder so the test never reads real saves
+        saves = Path(cls.tmp.name) / "saves"
+        saves.mkdir()
+        cfg = Path(cls.tmp.name) / "config" / "w3-quest-tracker"
+        cfg.mkdir(parents=True)
+        (cfg / "config.json").write_text(json.dumps({"save_dir": str(saves)}))
         cls.app = QApplication.instance() or QApplication([])
 
     @classmethod

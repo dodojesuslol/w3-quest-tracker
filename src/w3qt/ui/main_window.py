@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 from PySide6.QtCore import QItemSelectionModel, Qt, QTimer
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtGui import QAction, QDesktopServices, QKeySequence, QPixmap
+from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -34,7 +36,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import filtering, paths
+from .. import filtering, paths, savesync
+from ..gamefiles.locate import find_save_dirs
+from ..savesync import SaveSnapshot
+from ..watcher import SaveWatcher
 from ..config import Config
 from ..filtering import CATEGORY_LABELS, EXPANSION_LABELS, STATUS_LABELS, Criteria
 from ..profiles import STATUSES, Profile, ProfileStore
@@ -92,6 +97,7 @@ class MainWindow(QMainWindow):
         root.setContentsMargins(10, 10, 10, 6)
         root.setSpacing(8)
         root.addLayout(self._build_header())
+        root.addWidget(self._build_save_bar())
         self.tabs = QTabWidget()
         self.tabs.addTab(self._build_quests_tab(), "Quests")
         self.progress_tab = QScrollArea(widgetResizable=True)
@@ -100,11 +106,17 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.ponr_tab, "Point of no return")
         root.addWidget(self.tabs, 1)
         self.setCentralWidget(central)
-        self.statusBar().showMessage("Manual tracking: live save sync arrives in phase 4.")
+        self._snapshot: SaveSnapshot | None = None
+        self._sync_note = ""
+        self.watcher = SaveWatcher(self)
+        self.watcher.snapshot_ready.connect(self._on_snapshot)
+        self.watcher.failed.connect(self._on_sync_failed)
+        self.watcher.busy.connect(lambda msg: self.statusBar().showMessage(msg))
 
         self._build_menu()
         self._reload_profiles()
         self.refresh_all()
+        self._start_watching()
 
     # ------------------------------------------------------------ layout
 
@@ -162,6 +174,23 @@ class MainWindow(QMainWindow):
                 act.setShortcut(key)
             act.triggered.connect(slot)
             m.addAction(act)
+        sm = self.menuBar().addMenu("&Save")
+        for text, slot, key in (
+            ("&Sync now", self.watcher_sync, QKeySequence.Refresh),
+            ("Choose save &folder…", self._choose_save_dir, None),
+            ("Use &auto-detected folder", self._auto_save_dir, None),
+            (None, None, None),
+            ("&Unlink profile from playthrough", self._unlink_playthrough, None),
+            ("Show &unknown quests log", self._show_unknown_log, None),
+        ):
+            if text is None:
+                sm.addSeparator()
+                continue
+            act = QAction(text, self)
+            if key:
+                act.setShortcut(key)
+            act.triggered.connect(slot)
+            sm.addAction(act)
         find = QAction(self, shortcut=QKeySequence.Find)
         find.triggered.connect(lambda: (self.tabs.setCurrentIndex(0), self.search.setFocus(), self.search.selectAll()))
         self.addAction(find)
@@ -285,7 +314,8 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.d_warning)
 
         st = QHBoxLayout()
-        st.addWidget(_section("Status"))
+        self.d_status_label = _section("Status")
+        st.addWidget(self.d_status_label)
         self.d_status = QComboBox()
         self.d_status.addItem("— not set manually —", None)
         for s in STATUSES:
@@ -296,12 +326,14 @@ class MainWindow(QMainWindow):
         self.d_effective = _muted()
         lay.addWidget(self.d_effective)
 
-        lay.addWidget(_section("Description"))
+        self.d_desc_label = _section("Description")
+        lay.addWidget(self.d_desc_label)
         self.d_desc = QTextBrowser()
         self.d_desc.setMinimumHeight(140)
         lay.addWidget(self.d_desc, 2)
 
-        lay.addWidget(_section("Notes"))
+        self.d_notes_label = _section("Notes")
+        lay.addWidget(self.d_notes_label)
         self.d_notes = QPlainTextEdit(placeholderText="Your notes for this playthrough…")
         self.d_notes.setMinimumHeight(110)
         self.d_notes.textChanged.connect(self._on_notes_changed)
@@ -315,9 +347,146 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.d_empty)
         outer.setWidget(w)
         self._detail_widgets = [self.d_title, self.d_alt, self.d_meta, self.d_status, self.d_effective,
-                                self.d_desc, self.d_notes, self.d_ids]
+                                self.d_desc, self.d_notes, self.d_ids, self.d_status_label,
+                                self.d_desc_label, self.d_notes_label]
         self._show_detail(None)
         return outer
+
+    # ------------------------------------------------------------ save sync
+
+    def _build_save_bar(self) -> QFrame:
+        bar = QFrame(objectName="saveBar")
+        lay = QHBoxLayout(bar)
+        lay.setContentsMargins(8, 6, 8, 6)
+        self.s_thumb = QLabel()
+        self.s_thumb.setFixedSize(112, 63)
+        self.s_thumb.setScaledContents(True)
+        lay.addWidget(self.s_thumb)
+        text = QVBoxLayout()
+        text.setSpacing(2)
+        self.s_title = QLabel()
+        self.s_title.setTextFormat(Qt.RichText)
+        self.s_info = _muted()
+        self.s_warn = QLabel(wordWrap=True)
+        self.s_warn.setStyleSheet(f"color: {theme.ACCENT_HI};")
+        for w in (self.s_title, self.s_info, self.s_warn):
+            text.addWidget(w)
+        lay.addLayout(text, 1)
+        sync = QPushButton("Sync now")
+        sync.clicked.connect(self.watcher_sync)
+        folder = QPushButton("Save folder…")
+        folder.clicked.connect(self._choose_save_dir)
+        lay.addWidget(sync)
+        lay.addWidget(folder)
+        self._synced_timer = QTimer(self, interval=15_000)
+        self._synced_timer.timeout.connect(self._update_save_bar)
+        self._synced_timer.start()
+        return bar
+
+    def watcher_sync(self) -> None:
+        self.watcher.sync_now()
+
+    def _resolve_save_dir(self) -> Path | None:
+        if self.config.save_dir:
+            p = Path(self.config.save_dir).expanduser()
+            return p if p.is_dir() else None
+        dirs = find_save_dirs()
+        with_saves = [d for d in dirs if savesync.list_saves(d)]
+        return (with_saves or dirs or [None])[0]
+
+    def _start_watching(self) -> None:
+        directory = self._resolve_save_dir()
+        self._sync_note = "" if directory else "No save folder found. Choose one via “Save folder…”."
+        self.watcher.set_directory(directory)
+        self._update_save_bar()
+
+    def _on_snapshot(self, snap: SaveSnapshot) -> None:
+        self._snapshot = snap
+        self._apply_snapshot(snap)
+        self.refresh_all()
+        self._update_save_bar()
+        self.statusBar().showMessage(f"Synced {snap.path.name}", 5000)
+
+    def _apply_snapshot(self, snap: SaveSnapshot) -> None:
+        result = savesync.apply_snapshot(self.profile, self.db, snap)
+        notes = list(snap.warnings)
+        if not result.applied:
+            notes.append(result.reason)
+        else:
+            self._persist()
+            new = savesync.log_unknown(self.unknown_log_path(), snap, result.unknown)
+            if result.unknown:
+                notes.append(f"{len(result.unknown)} quest(s) in the save are not in quests.json"
+                             f" ({new} newly logged).")
+        if snap.skipped:
+            notes.append(f"Skipped {len(snap.skipped)} newer save(s) from an unsupported game version.")
+        self._sync_note = " ".join(notes)
+
+    def _on_sync_failed(self, msg: str) -> None:
+        self._sync_note = msg
+        self._update_save_bar()
+        self.statusBar().showMessage(msg, 8000)
+
+    def _update_save_bar(self) -> None:
+        snap = self._snapshot
+        directory = self.watcher.directory
+        if snap is None:
+            self.s_thumb.clear()
+            self.s_title.setText("<b>No save loaded</b>")
+            where = str(directory) if directory else "—"
+            self.s_info.setText(f"Folder: {where} · watcher: {self.watcher.backend}")
+        else:
+            self.s_thumb.setPixmap(QPixmap(str(snap.thumbnail)) if snap.thumbnail else QPixmap())
+            stamp = time.strftime("%d.%m.%Y %H:%M", time.localtime(snap.mtime))
+            self.s_title.setText(f"<b>{snap.path.name}</b> &nbsp; <span style='color:{theme.MUTED}'>{stamp}</span>")
+            parts = []
+            if snap.meta.get("player_level") is not None:
+                parts.append(f"Level {snap.meta['player_level']}")
+            if snap.meta.get("region"):
+                parts.append(snap.meta["region"])
+            last = self.profile.last_save or {}
+            if last.get("file") == snap.path.name and last.get("synced"):
+                ago = int(time.time() - last["synced"])
+                parts.append("synced just now" if ago < 60 else
+                             f"last synced {time.strftime('%H:%M:%S', time.localtime(last['synced']))}")
+            parts.append(f"priority: {'save' if self.profile.priority == 'save' else 'manual edits'}")
+            self.s_info.setText(" · ".join(parts))
+        self.s_warn.setText(self._sync_note)
+        self.s_warn.setVisible(bool(self._sync_note))
+
+    def _choose_save_dir(self) -> None:
+        start = str(self.watcher.directory or Path.home())
+        path = QFileDialog.getExistingDirectory(self, "Choose Witcher 3 save folder (gamesaves)", start)
+        if path:
+            self.config.save_dir = path
+            self.config.save()
+            self._snapshot = None
+            self._start_watching()
+
+    def _auto_save_dir(self) -> None:
+        self.config.save_dir = None
+        self.config.save()
+        self._snapshot = None
+        self._start_watching()
+
+    def _unlink_playthrough(self) -> None:
+        self.profile.playthrough_id = None
+        self.profile.save_status = {}
+        self._persist()
+        self.statusBar().showMessage("Profile unlinked; it will follow the next synced save.", 5000)
+        self.watcher.sync_now()
+        self.refresh_all()
+
+    @staticmethod
+    def unknown_log_path() -> Path:
+        return paths.data_dir() / "unknown_quests.log"
+
+    def _show_unknown_log(self) -> None:
+        path = self.unknown_log_path()
+        if not path.is_file():
+            QMessageBox.information(self, "Unknown quests", "No unknown quests have been logged.")
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
 
     # ------------------------------------------------------------ refresh
 
@@ -412,14 +581,21 @@ class MainWindow(QMainWindow):
                     f"<b>{len(open_)} missable quest(s) still open.</b> Finish them before completing this quest.",
                     wordWrap=True))
                 bl.addWidget(warn)
+            passed = status == "completed"
+            missed = [m for m in open_ if passed]
+            if missed:
+                bl.addWidget(QLabel(
+                    f"<span style='color:{theme.ACCENT_HI}'>Point passed: {len(missed)} quest(s) below were "
+                    "probably missed.</span>", wordWrap=True))
             for m in missables:
                 ms = self.profile.status(m["id"])
                 color = theme.ACCENT_HI if ms not in filtering.DONE else theme.MUTED
-                icon = {"completed": "✓", "failed": "✗"}.get(ms, "⚠")
+                icon = {"completed": "✓", "failed": "✗"}.get(ms, "✗" if passed else "⚠")
                 link = QLabel(
                     f'<a href="{m["id"]}" style="color:{color}; text-decoration:none">'
                     f'{icon} {filtering.display_name(m, lang)}</a>'
-                    f'  <span style="color:{theme.MUTED}">({STATUS_LABELS[ms]}) — {m.get("missable_reason") or ""}</span>')
+                    f'  <span style="color:{theme.MUTED}">({STATUS_LABELS[ms]}{", probably missed" if passed and ms not in filtering.DONE else ""})'
+                    f' — {m.get("missable_reason") or ""}</span>')
                 link.setWordWrap(True)
                 link.linkActivated.connect(self.select_quest)
                 bl.addWidget(link)
@@ -524,7 +700,10 @@ class MainWindow(QMainWindow):
         self._flush_note()
         self.profile = profile
         self._reload_profiles()
+        if self._snapshot is not None:
+            self._apply_snapshot(self._snapshot)
         self.refresh_all()
+        self._update_save_bar()
 
     def _switch_profile(self) -> None:
         name = self.profile_combo.currentText()
@@ -612,6 +791,7 @@ class MainWindow(QMainWindow):
         self.apply_filters()
 
     def closeEvent(self, event) -> None:
+        self.watcher.stop()
         self._flush_note()
         self._persist()
         super().closeEvent(event)

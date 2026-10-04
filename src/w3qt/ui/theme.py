@@ -80,6 +80,7 @@ QGroupBox::title {{ subcontrol-origin: margin; left: 8px; padding: 0 4px; color:
 QFrame#warning {{
     background: #2a1414; border: 1px solid {ACCENT}; border-left: 4px solid {ACCENT_HI}; border-radius: 3px;
 }}
+QFrame#saveBar {{ background: {PANEL}; border: 1px solid {BORDER}; border-radius: 4px; }}
 QLabel#muted {{ color: {MUTED}; }}
 QLabel#title {{ font-size: 15pt; font-weight: 600; color: #e6e7ea; }}
 QLabel#sectionTitle {{ color: {MUTED}; font-weight: 600; text-transform: uppercase; }}
