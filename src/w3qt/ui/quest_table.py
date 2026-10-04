@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
-from PySide6.QtGui import QBrush, QColor, QFont
+from PySide6.QtCore import QAbstractTableModel, QModelIndex, QRect, Qt, QTimer
+from PySide6.QtGui import QBrush, QColor, QFont, QFontMetrics
 from PySide6.QtWidgets import QTableView
 
 from .. import filtering
@@ -130,21 +130,76 @@ class QuestTableModel(QAbstractTableModel):
 
 
 class QuestTableView(QTableView):
-    """Gives the name column all spare width, but never less than NAME_MIN_WIDTH.
+    """Fixed column widths and row heights computed from font metrics.
 
-    Longer names wrap onto a second line; below the minimum a horizontal
-    scrollbar appears instead of squeezing the names.
+    The name column gets all spare width, but never less than NAME_MIN_WIDTH;
+    longer names wrap onto a second line. Sizes are computed directly instead
+    of via Qt's ResizeToContents/resizeRowsToContents, which query every cell
+    in every role and made filtering and resizing slow.
     """
 
     NAME_MIN_WIDTH = 210
+    CELL_PAD = 20          # item padding (2 × 4 px from the stylesheet) + focus margins + air
+    HEAD_PAD = 16          # header section padding
+    SORT_ARROW = 16        # extra room for the sort indicator
+    ROW_PAD = 12           # vertical padding per row
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._fit_timer = QTimer(self, singleShot=True, interval=40)
+        self._fit_timer.timeout.connect(self.fit)
+        self._col_widths: dict[int, int] = {}
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.fit_name_column()
+        self._fit_timer.start()  # coalesce the many events of a window drag
 
-    def fit_name_column(self):
+    def _metrics(self):
+        self.ensurePolished()
+        body = QFont(self.font())
+        bold = QFont(body)
+        bold.setBold(True)
+        head = QFont(theme.TITLE_FONT)
+        head.setPointSizeF(13)
+        return QFontMetrics(body), QFontMetrics(bold), QFontMetrics(head)
+
+    def fit(self, recompute_columns: bool = True):
+        model = self.model()
+        if model is None:
+            return
+        fm, fm_bold, fm_head = self._metrics()
         hh = self.horizontalHeader()
-        others = sum(hh.sectionSize(c) for c in range(len(COLUMNS)) if c != COL_NAME)
-        avail = self.viewport().width() - others
-        hh.resizeSection(COL_NAME, max(avail, self.NAME_MIN_WIDTH))
-        self.resizeRowsToContents()
+        if recompute_columns or not self._col_widths:
+            widths = {}
+            for c in range(len(COLUMNS)):
+                if c == COL_NAME:
+                    continue
+                w = fm_head.horizontalAdvance(COLUMNS[c]) + self.HEAD_PAD
+                if hh.sortIndicatorSection() == c:
+                    w += self.SORT_ARROW
+                for r in range(model.rowCount()):
+                    text = model.data(model.index(r, c), Qt.DisplayRole) or ""
+                    w = max(w, fm.horizontalAdvance(text) + self.CELL_PAD)
+                widths[c] = w
+            self._col_widths = widths
+        for c, w in self._col_widths.items():
+            hh.resizeSection(c, w)
+        others = sum(self._col_widths.values())
+        name_w = max(self.viewport().width() - others - 2, self.NAME_MIN_WIDTH)
+        hh.resizeSection(COL_NAME, name_w)
+
+        base = fm.height() + self.ROW_PAD
+        self.verticalHeader().setDefaultSectionSize(base)
+        text_w = name_w - 12  # what the delegate really has for text
+        for r in range(model.rowCount()):
+            q = model.quest_at(r)
+            text = model.data(model.index(r, COL_NAME), Qt.DisplayRole) or ""
+            m = fm_bold if q and q["category"] == "main" else fm
+            h = m.boundingRect(QRect(0, 0, text_w, 10_000), Qt.TextWordWrap, text).height() + self.ROW_PAD
+            if h > base:
+                self.setRowHeight(r, h)
+            elif self.rowHeight(r) != base:
+                self.setRowHeight(r, base)
+
+    def fit_name_column(self):  # kept for callers; widths change only with content
+        self.fit(recompute_columns=True)

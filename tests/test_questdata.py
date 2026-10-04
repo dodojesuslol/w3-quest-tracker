@@ -52,6 +52,18 @@ class TestQuestsJson(unittest.TestCase):
                 self.assertTrue(all(u.startswith("https://") for u in q["sources"]))
 
 
+class TestUserOverride(unittest.TestCase):
+    def test_broken_user_copy_falls_back_to_bundled(self):
+        import os
+        import tempfile
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "w3-quest-tracker").mkdir()
+            (Path(d) / "w3-quest-tracker" / "quests.json").write_text('{"quests": [')
+            with mock.patch.dict(os.environ, {"XDG_DATA_HOME": d}):
+                self.assertGreater(len(questdata.load().quests), 350)
+
+
 class TestMapping(unittest.TestCase):
     def test_save_maps_completely(self):
         db = questdata.load()

@@ -64,5 +64,40 @@ class TestSaveWatcher(unittest.TestCase):
             w.stop()
 
 
+    def test_save_written_in_chunks(self):
+        """The game writes saves over a few seconds; the watcher must wait and then load it."""
+        import threading
+        import time
+
+        from w3qt.watcher import SaveWatcher
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            shutil.copy(FIXTURES / "CheckPoint_11b6cd_7ea48c00_3cd014e.sav", d)
+            w = SaveWatcher()
+            failed = []
+            w.failed.connect(failed.append)
+            w.set_directory(d)
+            self.assertIsNotNone(self.wait_for(w.snapshot_ready))
+            data = (FIXTURES / "ManualSave_11b6cd_7ea48c00_411cb11.sav").read_bytes()
+            target = d / "ManualSave_new.sav"
+
+            def writer():
+                with open(target, "wb") as f:
+                    for i in range(0, len(data), len(data) // 6 + 1):
+                        f.write(data[i:i + len(data) // 6 + 1])
+                        f.flush()
+                        time.sleep(0.5)
+
+            t = threading.Thread(target=writer)
+            t.start()
+            got = self.wait_for(w.snapshot_ready, 20000)
+            t.join()
+            self.assertIsNotNone(got, f"no snapshot; failures: {failed}")
+            self.assertEqual(got[0].path.name, "ManualSave_new.sav")
+            self.assertEqual(got[0].meta["player_level"], 38)
+            self.assertEqual(failed, [])
+            w.stop()
+
+
 if __name__ == "__main__":
     unittest.main()

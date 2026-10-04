@@ -128,6 +128,8 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.tabs)
         self.stack.addWidget(self.page)
         root.addWidget(self.stack, 1)
+        self.tabs.currentChanged.connect(lambda _i: (setattr(self, "_views_dirty", True),
+                                                     self._refresh_visible_tab()))
         self.setCentralWidget(central)
         self._snapshot: SaveSnapshot | None = None
         self._snapshot_applied = False
@@ -260,13 +262,13 @@ class MainWindow(QMainWindow):
         hh = self.table.horizontalHeader()
         # The name column takes the spare width; long names wrap onto a second
         # line instead of being cut off.
-        hh.setSectionResizeMode(QHeaderView.ResizeToContents)
-        hh.setSectionResizeMode(COL_NAME, QHeaderView.Fixed)
+        hh.setSectionResizeMode(QHeaderView.Fixed)  # sizes come from QuestTableView.fit()
         self.table.setWordWrap(True)
         self.table.setTextElideMode(Qt.ElideNone)
         self.table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         hh.setHighlightSections(False)
         self.table.sortByColumn(COL_NAME, Qt.AscendingOrder)
+        hh.sortIndicatorChanged.connect(lambda *_: self.table.fit())
         self.table.selectionModel().currentRowChanged.connect(self._on_row_changed)
         self.table.activated.connect(lambda idx: self.open_page(self.model.quest_at(idx.row())["id"]))
         self.table.doubleClicked.connect(lambda idx: self.open_page(self.model.quest_at(idx.row())["id"]))
@@ -627,12 +629,25 @@ class MainWindow(QMainWindow):
         self.model.set_profile(self.profile, self.config.name_lang)
         self.apply_filters()
         self._refresh_overall()
-        self._build_progress_view()
-        self._build_ponr_view()
+        # the overview tabs are rebuilt lazily, when they are actually shown
+        self._views_dirty = True
+        self._refresh_visible_tab()
         self._show_detail(self.db.by_id.get(self._current_id) if self._current_id else None)
         if self.stack.currentWidget() is self.page and self.page.quest:
             self.page.show_quest(self.db.by_id[self.page.quest["id"]], self.db, self.profile,
                                  self.config.name_lang, self._entry_status())
+
+    def _refresh_visible_tab(self) -> None:
+        if not getattr(self, "_views_dirty", True):
+            return
+        current = self.tabs.currentWidget()
+        if current is self.progress_tab:
+            self._build_progress_view()
+        elif current is self.ponr_tab:
+            self._build_ponr_view()
+        else:
+            return
+        self._views_dirty = False
 
     def _refresh_overall(self) -> None:
         p = filtering.progress(self.db.quests, self.profile)
