@@ -105,8 +105,14 @@ class MainWindow(QMainWindow):
         root = QVBoxLayout(central)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(8)
-        root.addLayout(self._build_header())
-        root.addWidget(self._build_save_bar())
+        # header + save bar: shown on the list views, hidden on the quest page
+        self.top_area = QWidget()
+        top = QVBoxLayout(self.top_area)
+        top.setContentsMargins(0, 0, 0, 0)
+        top.setSpacing(8)
+        top.addLayout(self._build_header())
+        top.addWidget(self._build_save_bar())
+        root.addWidget(self.top_area)
         self.tabs = QTabWidget()
         self.tabs.addTab(self._build_quests_tab(), "Quests")
         self.progress_tab = QScrollArea(widgetResizable=True)
@@ -737,6 +743,7 @@ class MainWindow(QMainWindow):
         self._flush_note()
         self._current_id = quest_id
         self.page.show_quest(q, self.db, self.profile, self.config.name_lang, self._entry_status())
+        self.top_area.hide()
         self.stack.setCurrentWidget(self.page)
         self.page.setFocus()
 
@@ -748,6 +755,7 @@ class MainWindow(QMainWindow):
         return super().eventFilter(obj, event)
 
     def close_page(self) -> None:
+        self.top_area.show()
         self.stack.setCurrentWidget(self.tabs)
         self.refresh_all()
         self._reselect()

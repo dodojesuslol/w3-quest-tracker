@@ -60,6 +60,7 @@ class TestMainWindow(unittest.TestCase):
         w = self.make_window()
         w.open_page("q001yennsearch")
         self.assertIs(w.stack.currentWidget(), w.page)
+        self.assertTrue(w.top_area.isHidden())
         self.assertIn("Lilac", w.page.alt.text() + w.page.title.text())
         # no save loaded in this test: every objective is listed
         self.assertIn("Vesemir", w.page.objectives.text())
@@ -67,6 +68,7 @@ class TestMainWindow(unittest.TestCase):
         self.assertEqual(w.profile.status("q001yennsearch"), "failed")
         w.page.go_back()
         self.assertIs(w.stack.currentWidget(), w.tabs)
+        self.assertFalse(w.top_area.isHidden())
         w.close()
 
     def test_missable_filter(self):
