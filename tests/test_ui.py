@@ -1,0 +1,63 @@
+"""Offscreen smoke test of the main window."""
+import os
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
+try:
+    from PySide6.QtWidgets import QApplication
+except ImportError:  # pragma: no cover
+    QApplication = None
+
+
+@unittest.skipUnless(QApplication, "PySide6 not installed")
+class TestMainWindow(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        os.environ["XDG_DATA_HOME"] = str(Path(cls.tmp.name) / "data")
+        os.environ["XDG_CONFIG_HOME"] = str(Path(cls.tmp.name) / "config")
+        cls.app = QApplication.instance() or QApplication([])
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def make_window(self):
+        from w3qt import questdata
+        from w3qt.config import Config
+        from w3qt.profiles import ProfileStore
+        from w3qt.ui.main_window import MainWindow, profiles_dir
+        return MainWindow(questdata.load(), ProfileStore(profiles_dir()), Config.load())
+
+    def test_filter_select_and_set_status(self):
+        w = self.make_window()
+        self.assertEqual(w.model.rowCount(), len(w.db.quests))
+        w.search.setText("gooseberries")
+        self.assertEqual(w.model.rowCount(), 1)
+        w.select_quest("q001yennsearch")
+        w.d_status.setCurrentIndex(w.d_status.findData("completed"))
+        w._on_manual_status()
+        self.assertEqual(w.profile.status("q001yennsearch"), "completed")
+        self.assertEqual(w.overall.value(), 1)
+        w.close()
+        # persisted
+        w2 = self.make_window()
+        self.assertEqual(w2.profile.status("q001yennsearch"), "completed")
+        w2.close()
+
+    def test_missable_filter(self):
+        w = self.make_window()
+        w.f_missable.setChecked(True)
+        rows = [w.model.quest_at(i) for i in range(w.model.rowCount())]
+        self.assertTrue(rows)
+        self.assertTrue(all(q["missable"] for q in rows))
+        w.close()
+
+
+if __name__ == "__main__":
+    unittest.main()

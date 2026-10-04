@@ -1,0 +1,9 @@
+#!/usr/bin/env python3
+"""Run the tracker from a source checkout."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
+from w3qt.ui.app import main  # noqa: E402
+
+sys.exit(main())
