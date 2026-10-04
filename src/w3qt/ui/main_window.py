@@ -402,7 +402,7 @@ class MainWindow(QMainWindow):
 
         self.d_notes_label = _section("Notes")
         lay.addWidget(self.d_notes_label)
-        self.d_notes = QPlainTextEdit(placeholderText="Your notes for this playthrough…")
+        self.d_notes = QPlainTextEdit(objectName="notes", placeholderText="Write your notes here…")
         self.d_notes.setMinimumHeight(110)
         self.d_notes.textChanged.connect(self._on_notes_changed)
         lay.addWidget(self.d_notes, 1)

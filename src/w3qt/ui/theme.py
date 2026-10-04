@@ -70,7 +70,13 @@ QMainWindow {{ background: {DESK}; }}
 QDialog, QMessageBox, QFileDialog {{ background: {BG}; }}
 QToolTip {{ background: {PANEL_SOLID}; border: 1px solid {BORDER}; padding: 4px; }}
 
-QLineEdit, QSpinBox, QComboBox, QPlainTextEdit, QTextBrowser {{
+QTextBrowser {{ background: transparent; border: none; selection-background-color: {SELECTION}; }}
+QPlainTextEdit#notes {{
+    background: rgba(255, 248, 226, 0.22); border: none; border-left: 3px solid {ACCENT};
+    border-radius: 0; padding: 4px 10px; font-style: italic;
+}}
+QPlainTextEdit#notes:focus {{ background: rgba(255, 248, 226, 0.4); }}
+QLineEdit, QSpinBox, QComboBox, QPlainTextEdit {{
     background: {PANEL}; border: 1px solid {BORDER}; border-radius: 2px; padding: 2px 6px;
     selection-background-color: {SELECTION}; selection-color: {TEXT};
 }}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import re
 from urllib.parse import urlparse
 
 import time
@@ -19,7 +20,6 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
-    QTextBrowser,
     QVBoxLayout,
     QWidget,
 )
@@ -28,6 +28,7 @@ from .. import filtering, wiki
 from ..filtering import CATEGORY_LABELS, EXPANSION_LABELS, STATUS_LABELS
 from ..profiles import STATUSES
 from . import theme
+from .ornament import Ornament
 
 STATUS_SHORT = {"not_started": "Not started", "in_progress": "In progress",
                 "completed": "Completed", "failed": "Failed / Missed"}
@@ -75,6 +76,15 @@ def sources_html(entry: dict) -> str:
 
 
 class QuestPage(QWidget):
+    @staticmethod
+    def _rich_label() -> QLabel:
+        lbl = QLabel()
+        lbl.setTextFormat(Qt.RichText)
+        lbl.setWordWrap(True)
+        lbl.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        lbl.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        return lbl
+
     back = Signal()
     status_changed = Signal(str, object)   # quest id, status or None (use save)
     note_changed = Signal(str, str)
@@ -88,10 +98,10 @@ class QuestPage(QWidget):
         self._note_timer.timeout.connect(self._emit_note)
 
         root = QVBoxLayout(self)
-        root.setContentsMargins(4, 4, 4, 4)
-        root.setSpacing(6)
+        root.setContentsMargins(4, 4, 4, 0)
+        root.setSpacing(2)
 
-        # breadcrumb: "‹ Quest list / <quest>"
+        # breadcrumb: "‹ Quest list / <category> / <quest>" (stays visible while scrolling)
         top = QHBoxLayout()
         top.setSpacing(6)
         back = QPushButton("‹  Quest list", objectName="ghost")
@@ -104,28 +114,44 @@ class QuestPage(QWidget):
         top.addStretch(1)
         root.addLayout(top)
 
+        # everything else is written straight onto the parchment and scrolls as one page
+        self.scroll = QScrollArea(widgetResizable=True)
+        self.scroll.setFrameShape(QFrame.NoFrame)
+        page = QWidget()
+        body = QVBoxLayout(page)
+        body.setContentsMargins(6, 0, 14, 12)
+        body.setSpacing(4)
+        self.scroll.setWidget(page)
+        root.addWidget(self.scroll, 1)
+
         self.title = _label(name="pageTitle")
         self.alt = _label(name="muted")
         self.meta = _label(name="muted")
         for w in (self.title, self.alt, self.meta):
-            root.addWidget(w)
+            body.addWidget(w)
+        body.addWidget(Ornament())
 
         cols = QHBoxLayout()
-        cols.setSpacing(18)
-        root.addLayout(cols, 1)
+        cols.setSpacing(28)
+        body.addLayout(cols)
 
-        # left: journal + objectives
+        # left column: journal, objectives, walkthrough
         left = QVBoxLayout()
+        left.setSpacing(6)
         head = QHBoxLayout()
-        head.addWidget(_label("Journal & objectives", "sectionTitle", wrap=False))
+        head.addWidget(_label("Journal", "sectionTitle", wrap=False))
         head.addStretch(1)
         self.spoilers = QCheckBox("Show unrevealed entries (spoilers)")
         self.spoilers.toggled.connect(self._render_journal)
         head.addWidget(self.spoilers)
         left.addLayout(head)
-        self.journal = QTextBrowser()
-        self.journal.setOpenLinks(False)
-        left.addWidget(self.journal, 3)
+        self.journal = self._rich_label()
+        left.addWidget(self.journal)
+        left.addWidget(Ornament())
+        left.addWidget(_label("Objectives", "sectionTitle", wrap=False))
+        self.objectives = self._rich_label()
+        left.addWidget(self.objectives)
+        left.addWidget(Ornament())
 
         # walkthrough from the Witcher Fandom wiki, loaded only when expanded
         wrow = QHBoxLayout()
@@ -135,13 +161,14 @@ class QuestPage(QWidget):
         wrow.addWidget(self.wiki_toggle)
         wrow.addStretch(1)
         left.addLayout(wrow)
-        self.wiki_view = QTextBrowser()
+        self.wiki_view = self._rich_label()
         self.wiki_view.setOpenExternalLinks(True)
-        left.addWidget(self.wiki_view, 3)
+        left.addWidget(self.wiki_view)
         self.wiki_footer = _label(name="muted")
         self.wiki_footer.setTextFormat(Qt.RichText)
         self.wiki_footer.linkActivated.connect(self._on_wiki_link)
         left.addWidget(self.wiki_footer)
+        left.addStretch(1)
         cols.addLayout(left, 3)
         self._wiki_signals = _WikiSignals(self)
         self._wiki_signals.done.connect(self._on_wiki_done)
@@ -150,13 +177,11 @@ class QuestPage(QWidget):
         self._wiki_loaded_for: str | None = None
         self._set_wiki_expanded(False)
 
-        # right: status, warnings, notes, info
-        right_area = QScrollArea(widgetResizable=True)
-        right_area.setMinimumWidth(340)
-        right_area.setMaximumWidth(420)
+        # right column: status, warnings, notes, details
         right_w = QWidget()
+        right_w.setFixedWidth(360)
         right = QVBoxLayout(right_w)
-        right.setContentsMargins(0, 0, 6, 0)
+        right.setContentsMargins(0, 0, 0, 0)
         right.setSpacing(8)
 
         right.addWidget(_label("Status", "sectionTitle"))
@@ -194,20 +219,21 @@ class QuestPage(QWidget):
         QVBoxLayout(self.ponr).addWidget(self.ponr_text)
         right.addWidget(self.ponr)
 
+        right.addWidget(Ornament())
         right.addWidget(_label("Notes", "sectionTitle"))
-        self.notes = QPlainTextEdit(placeholderText="Your notes for this playthrough…")
-        self.notes.setMinimumHeight(130)
+        self.notes = QPlainTextEdit(objectName="notes", placeholderText="Write your notes here…")
+        self.notes.setMinimumHeight(140)
         self.notes.textChanged.connect(self._on_notes)
         right.addWidget(self.notes)
 
+        right.addWidget(Ornament())
         right.addWidget(_label("Details", "sectionTitle"))
         self.info = QFormLayout()
         self.info.setLabelAlignment(Qt.AlignLeft)
         self.info.setVerticalSpacing(3)
         right.addLayout(self.info)
         right.addStretch(1)
-        right_area.setWidget(right_w)
-        cols.addWidget(right_area, 2)
+        cols.addWidget(right_w, 0, Qt.AlignTop)
 
         self._db = None
         self._profile = None
@@ -338,56 +364,56 @@ class QuestPage(QWidget):
         show_all = self.spoilers.isChecked() or entries is None
         discovered = entries is not None and q["save_ids"]["guid"] in entries
         ink, muted = theme.TEXT, theme.MUTED
-        parts = [f'<div style="color:{ink}; font-size:13.5pt">']
 
-        if entries is None:
-            parts.append(f'<p style="color:{muted}"><i>No save loaded — showing every entry.</i></p>')
-        elif not discovered and not show_all:
-            parts.append(f'<p style="color:{muted}">This quest has not appeared in your journal yet. '
-                         'Tick “Show unrevealed entries” to read ahead.</p></div>')
-            self.journal.setHtml("".join(parts))
+        def note(text: str) -> str:
+            return f'<p style="color:{muted}">{text}</p>'
+
+        if entries is not None and not discovered and not show_all:
+            self.journal.setText(note("This quest has not appeared in your journal yet. "
+                                      "Tick “Show unrevealed entries” to read ahead."))
+            self.objectives.setText(note("Hidden until the quest is discovered."))
             return
 
         def visible(guid: str) -> bool:
             return show_all or (entries is not None and guid in entries)
 
+        # journal: game texts, first one opened with a red initial like a manuscript
         texts = [j for j in q.get("journal", []) if visible(j["guid"])]
+        parts = [note("<i>No save loaded — showing every entry.</i>")] if entries is None else []
+        for i, j in enumerate(texts):
+            body = (j.get("text_de") if lang == "de" else None) or j.get("text") or ""
+            body = re.sub(r"(\s*<br\s*/?>\s*)+$", "", body.strip())   # trailing breaks in game text
+            if i == 0 and body[:1].isalpha():
+                body = (f'<span style="font-family:\'{theme.TITLE_FONT}\'; font-size:19pt; '
+                        f'color:{theme.ACCENT}">{body[0]}</span>{body[1:]}')
+            parts.append(f"<p>{body}</p>")  # game text uses <br> markup
+        if not texts:
+            parts.append(note("No journal entry yet."))
         hidden_texts = len(q.get("journal", [])) - len(texts)
-        parts.append(f'<h3 style="font-family:\'{theme.TITLE_FONT}\'; color:{theme.ACCENT}">Journal</h3>')
-        if texts:
-            for j in texts:
-                body = (j.get("text_de") if lang == "de" else None) or j.get("text") or ""
-                parts.append(f"<p>{body}</p>")  # game text uses simple markup like <br>
-        else:
-            parts.append(f'<p style="color:{muted}">No journal entry yet.</p>')
         if hidden_texts and not show_all:
-            parts.append(f'<p style="color:{muted}">{hidden_texts} more entr{"y" if hidden_texts == 1 else "ies"} '
-                         'not revealed yet.</p>')
+            parts.append(note(f'{hidden_texts} more entr{"y" if hidden_texts == 1 else "ies"} not revealed yet.'))
+        self.journal.setText(f'<div style="color:{ink}">{"".join(parts)}</div>')
 
+        # objectives checklist
         objs = q.get("objectives", [])
         shown = [o for o in objs if visible(o["guid"])]
-        parts.append(f'<h3 style="font-family:\'{theme.TITLE_FONT}\'; color:{theme.ACCENT}">Objectives</h3>')
-        if shown:
-            parts.append('<table cellspacing="0" cellpadding="3">')
-            for o in shown:
-                st = entries.get(o["guid"]) if entries else None
-                icon, color = OBJ_ICON.get(st, ("·", muted))
-                name = html.escape((o.get("name_de") if lang == "de" else None) or o.get("name") or "")
-                style = f"color:{muted}; text-decoration:line-through" if st == "success" else f"color:{ink}"
-                if st == "failed":
-                    style = f"color:{theme.STATUS_COLORS['failed']}"
-                parts.append(f'<tr><td style="color:{color}; font-weight:700; padding-right:8px">{icon}</td>'
-                             f'<td style="{style}">{name}</td></tr>')
-            parts.append("</table>")
-        else:
-            parts.append(f'<p style="color:{muted}">No objectives revealed yet.</p>')
+        rows = []
+        for o in shown:
+            st = entries.get(o["guid"]) if entries else None
+            icon, color = OBJ_ICON.get(st, ("·", muted))
+            name = html.escape((o.get("name_de") if lang == "de" else None) or o.get("name") or "")
+            style = f"color:{muted}; text-decoration:line-through" if st == "success" else f"color:{ink}"
+            if st == "failed":
+                style = f"color:{theme.STATUS_COLORS['failed']}"
+            rows.append(f'<tr><td style="color:{color}; font-weight:700; padding:2px 10px 2px 0">{icon}</td>'
+                        f'<td style="{style}; padding:2px 0">{name}</td></tr>')
+        out = f'<table cellspacing="0">{"".join(rows)}</table>' if rows else note("No objectives revealed yet.")
         hidden = len(objs) - len(shown)
         if hidden and not show_all:
-            parts.append(f'<p style="color:{muted}">{hidden} objective{"s" if hidden != 1 else ""} '
-                         'not revealed yet.</p>')
-        parts.append(f'<p style="color:{muted}; font-size:11pt">✓ done · ▸ active · ✗ failed · ○ inactive</p>')
-        parts.append("</div>")
-        self.journal.setHtml("".join(parts))
+            out += note(f'{hidden} objective{"s" if hidden != 1 else ""} not revealed yet.')
+        if rows:
+            out += f'<p style="color:{muted}; font-size:11pt">✓ done · ▸ active · ✗ failed · ○ inactive</p>'
+        self.objectives.setText(out)
 
     # ------------------------------------------------------------ wiki
 
@@ -405,7 +431,7 @@ class QuestPage(QWidget):
     def _load_wiki(self, force: bool = False) -> None:
         q = self.quest
         self._wiki_loaded_for = q["id"]
-        self.wiki_view.setHtml(f'<p style="color:{theme.MUTED}">Loading walkthrough…</p>')
+        self.wiki_view.setText(f'<p style="color:{theme.MUTED}">Loading walkthrough…</p>')
         self.wiki_footer.setText("")
         self._wiki_pool.start(_WikiJob(self._wiki_signals, q["id"], q["name"], force))
 
@@ -415,16 +441,19 @@ class QuestPage(QWidget):
         muted = theme.MUTED
         if wt is None:
             self._wiki_loaded_for = None
-            self.wiki_view.setHtml(f'<p style="color:{theme.ACCENT}">Could not load the walkthrough.</p>'
+            self.wiki_view.setText(f'<p style="color:{theme.ACCENT}">Could not load the walkthrough.</p>'
                                    f'<p style="color:{muted}">{html.escape(error)}</p>')
             self.wiki_footer.setText(f'<a href="reload" style="color:{theme.ACCENT}">Try again</a>')
             return
         if not wt.found:
-            self.wiki_view.setHtml(
+            self.wiki_view.setText(
                 f'<p style="color:{muted}">No walkthrough section found on the wiki for this quest.</p>'
                 f'<p><a href="{wt.url}" style="color:{theme.ACCENT}">Search the Witcher Wiki</a></p>')
         else:
-            self.wiki_view.setHtml(f'<div style="color:{theme.TEXT}; font-size:12.5pt">{wt.html}</div>')
+            css = (f"<style>h2, h3, h4 {{ font-family: '{theme.TITLE_FONT}'; color: {theme.ACCENT}; }}"
+                   f" h2 {{ font-size: 17pt; }} h3 {{ font-size: 15pt; }} h4 {{ font-size: 13pt; }}"
+                   f" a {{ color: {theme.ACCENT}; }}</style>")
+            self.wiki_view.setText(f'{css}<div style="color:{theme.TEXT}; line-height:130%">{wt.html}</div>')
         when = time.strftime("%d.%m.%Y", time.localtime(wt.fetched))
         self.wiki_footer.setText(
             f'Source: <a href="{wt.url}" style="color:{muted}">Witcher Wiki – {html.escape(wt.title)}</a>, '

@@ -62,7 +62,7 @@ class TestMainWindow(unittest.TestCase):
         self.assertIs(w.stack.currentWidget(), w.page)
         self.assertIn("Lilac", w.page.alt.text() + w.page.title.text())
         # no save loaded in this test: every objective is listed
-        self.assertIn("Vesemir", w.page.journal.toPlainText())
+        self.assertIn("Vesemir", w.page.objectives.text())
         w.page.status_buttons["failed"].click()
         self.assertEqual(w.profile.status("q001yennsearch"), "failed")
         w.page.go_back()
