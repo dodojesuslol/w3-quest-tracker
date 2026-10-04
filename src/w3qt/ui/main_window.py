@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QItemSelectionModel, Qt, QTimer
 from PySide6.QtGui import QAction, QDesktopServices, QKeySequence, QPixmap
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import QDir, QUrl
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QSplitter,
     QTabWidget,
+    QTreeView,
     QTextBrowser,
     QVBoxLayout,
     QWidget,
@@ -179,6 +180,7 @@ class MainWindow(QMainWindow):
             ("&Sync now", self.watcher_sync, QKeySequence.Refresh),
             ("Choose save &folder…", self._choose_save_dir, None),
             ("Use &auto-detected folder", self._auto_save_dir, None),
+            ("&Open save folder in file manager", self._open_save_dir, None),
             (None, None, None),
             ("&Unlink profile from playthrough", self._unlink_playthrough, None),
             ("Show &unknown quests log", self._show_unknown_log, None),
@@ -456,13 +458,43 @@ class MainWindow(QMainWindow):
         self.s_warn.setVisible(bool(self._sync_note))
 
     def _choose_save_dir(self) -> None:
-        start = str(self.watcher.directory or Path.home())
-        path = QFileDialog.getExistingDirectory(self, "Choose Witcher 3 save folder (gamesaves)", start)
+        # Qt's own dialog: it can show the .sav files inside folders (a plain
+        # directory picker shows only subfolders, so gamesaves looks empty) and
+        # hidden folders such as ~/.local and ~/.steam.
+        dlg = QFileDialog(self, "Choose Witcher 3 save folder (gamesaves)")
+        dlg.setFileMode(QFileDialog.Directory)
+        dlg.setOption(QFileDialog.ShowDirsOnly, False)
+        dlg.setOption(QFileDialog.DontUseNativeDialog, True)
+        dlg.setFilter(QDir.AllDirs | QDir.Files | QDir.Hidden | QDir.NoDotAndDotDot)
+        dlg.setNameFilter("Witcher 3 saves (*.sav)")
+        start = self.watcher.directory or Path.home()
+        dlg.setDirectory(str(start))
+        detected = [QUrl.fromLocalFile(str(d)) for d in find_save_dirs()]
+        dlg.setSidebarUrls([QUrl.fromLocalFile(str(Path.home()))] + detected)
+        dlg.resize(1000, 600)
+        dlg.setViewMode(QFileDialog.Detail)
+        for view in dlg.findChildren(QTreeView):
+            view.header().setSectionResizeMode(QHeaderView.ResizeToContents)
+            view.header().setSectionResizeMode(0, QHeaderView.Stretch)
+            view.header().setStretchLastSection(False)
+        for splitter in dlg.findChildren(QSplitter):
+            splitter.setSizes([220, 780])
+        if not dlg.exec() or not dlg.selectedFiles():
+            return
+        path = dlg.selectedFiles()[0]
+        if Path(path).is_file():  # a .sav was picked: use its folder
+            path = str(Path(path).parent)
         if path:
             self.config.save_dir = path
             self.config.save()
             self._snapshot = None
             self._start_watching()
+
+    def _open_save_dir(self) -> None:
+        if self.watcher.directory:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.watcher.directory)))
+        else:
+            QMessageBox.information(self, "Save folder", "No save folder is set.")
 
     def _auto_save_dir(self) -> None:
         self.config.save_dir = None
@@ -804,7 +836,7 @@ class MainWindow(QMainWindow):
         self.apply_filters()
 
     def closeEvent(self, event) -> None:
-        self.watcher.stop()
+        self.watcher.shutdown()
         self._flush_note()
         self._persist()
         super().closeEvent(event)

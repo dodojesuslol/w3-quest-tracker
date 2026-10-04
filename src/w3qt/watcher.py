@@ -36,12 +36,18 @@ class _Job(QRunnable):
         try:
             snap = newest_snapshot(self.directory)
         except NotReady as e:
-            self.watcher._not_ready.emit(self.generation, str(e))
+            self._emit(self.watcher._not_ready, str(e))
             return
         except Exception as e:  # never let a worker crash the app
-            self.watcher._error.emit(self.generation, f"Could not read saves: {e}")
+            self._emit(self.watcher._error, f"Could not read saves: {e}")
             return
-        self.watcher._done.emit(self.generation, snap)
+        self._emit(self.watcher._done, snap)
+
+    def _emit(self, signal, payload):
+        try:
+            signal.emit(self.generation, payload)
+        except RuntimeError:
+            pass  # watcher was deleted while this job ran (app closing)
 
 
 # Only events that mean "a file changed". Opening and closing without writing
@@ -114,6 +120,11 @@ class SaveWatcher(QObject):
             self._qt_watcher.directoryChanged.connect(self._debounce.start)
         self._poll.start()
         self.sync_now()
+
+    def shutdown(self) -> None:
+        """Stop watching and wait for a running read to finish."""
+        self.stop()
+        self._pool.waitForDone(3000)
 
     def stop(self) -> None:
         self._generation += 1
