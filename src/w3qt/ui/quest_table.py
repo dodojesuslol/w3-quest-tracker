@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QAbstractTableModel, QModelIndex, QRect, Qt, QTimer
+from PySide6.QtCore import QAbstractTableModel, QEvent, QModelIndex, QRect, Qt, QTimer
 from PySide6.QtGui import QBrush, QColor, QFont, QFontMetrics
 from PySide6.QtWidgets import QTableView
 
@@ -10,10 +10,10 @@ from .. import filtering
 from ..profiles import Profile
 from . import theme
 
-COLUMNS = ["Status", "Quest", "Category", "Region", "Lvl", "Content", "⚠"]
+COLUMNS = ["Status", "Quest", "Category", "Region", "Lvl", "Content", "⚠", ""]
 SHORT_CATEGORY = {**filtering.CATEGORY_LABELS, "contract": "Contract"}
 SHORT_EXPANSION = {"base": "Base", "hearts_of_stone": "HoS", "blood_and_wine": "B&W"}
-COL_STATUS, COL_NAME, COL_CATEGORY, COL_REGION, COL_LEVEL, COL_EXPANSION, COL_MISSABLE = range(7)
+COL_STATUS, COL_NAME, COL_CATEGORY, COL_REGION, COL_LEVEL, COL_EXPANSION, COL_MISSABLE, COL_OPEN = range(8)
 QUEST_ROLE = Qt.UserRole + 1
 
 
@@ -86,7 +86,11 @@ class QuestTableModel(QAbstractTableModel):
                 return SHORT_EXPANSION[q["expansion"]]
             if col == COL_MISSABLE:
                 return "⚠" if q.get("missable") else ""
+            if col == COL_OPEN:
+                return "Details ›"
         if role == Qt.ForegroundRole:
+            if col == COL_OPEN:
+                return QBrush(QColor(theme.ACCENT))
             if col == COL_STATUS:
                 return QBrush(QColor(theme.STATUS_COLORS[status]))
             if col == COL_MISSABLE or (col == COL_NAME and open_missable):
@@ -97,7 +101,11 @@ class QuestTableModel(QAbstractTableModel):
             return self._bold
         if role == Qt.TextAlignmentRole and col == COL_LEVEL:
             return int(Qt.AlignRight | Qt.AlignVCenter)
+        if role == Qt.TextAlignmentRole and col in (COL_OPEN, COL_MISSABLE):
+            return int(Qt.AlignCenter)
         if role == Qt.ToolTipRole:
+            if col == COL_OPEN:
+                return "Open the quest page (or double-click the row / press Enter)"
             if col == COL_EXPANSION:
                 return filtering.EXPANSION_LABELS[q["expansion"]]
             if q.get("missable"):
@@ -125,6 +133,7 @@ class QuestTableModel(QAbstractTableModel):
             COL_LEVEL: filtering.sort_key("level", self.lang),
             COL_EXPANSION: lambda q: (list(filtering.EXPANSION_LABELS).index(q["expansion"]), name(q)),
             COL_MISSABLE: lambda q: (not q.get("missable"), name(q)),
+            COL_OPEN: name,
         }
         self.rows.sort(key=keys[col], reverse=self._sort_order == Qt.DescendingOrder)
 
@@ -149,10 +158,23 @@ class QuestTableView(QTableView):
         self._fit_timer = QTimer(self, singleShot=True, interval=40)
         self._fit_timer.timeout.connect(self.fit)
         self._col_widths: dict[int, int] = {}
+        self.setMouseTracking(True)
+
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._fit_timer.start()  # coalesce the many events of a window drag
+
+    def viewportEvent(self, event):
+        # also fires when the vertical scrollbar appears or disappears
+        if event.type() == QEvent.Resize:
+            self._fit_timer.start()
+        return super().viewportEvent(event)
+
+    def mouseMoveEvent(self, event):
+        over_link = self.indexAt(event.position().toPoint()).column() == COL_OPEN
+        self.viewport().setCursor(Qt.PointingHandCursor if over_link else Qt.ArrowCursor)
+        super().mouseMoveEvent(event)
 
     def _metrics(self):
         self.ensurePolished()
@@ -182,9 +204,10 @@ class QuestTableView(QTableView):
                     w = max(w, fm.horizontalAdvance(text) + self.CELL_PAD)
                 widths[c] = w
             self._col_widths = widths
+        hh.setMinimumSectionSize(16)  # Qt's default minimum would widen the narrow columns
         for c, w in self._col_widths.items():
             hh.resizeSection(c, w)
-        others = sum(self._col_widths.values())
+        others = sum(hh.sectionSize(c) for c in self._col_widths)  # actual sizes
         name_w = max(self.viewport().width() - others - 2, self.NAME_MIN_WIDTH)
         hh.resizeSection(COL_NAME, name_w)
 

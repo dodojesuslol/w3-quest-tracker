@@ -11,7 +11,6 @@ from PySide6.QtCore import QDir, QUrl
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
-    QButtonGroup,
     QCheckBox,
     QComboBox,
     QFileDialog,
@@ -26,7 +25,6 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMainWindow,
     QMessageBox,
-    QPlainTextEdit,
     QProgressBar,
     QPushButton,
     QScrollArea,
@@ -37,7 +35,6 @@ from PySide6.QtWidgets import (
     QToolButton,
     QMenu,
     QTreeView,
-    QTextBrowser,
     QVBoxLayout,
     QWidget,
 )
@@ -48,12 +45,12 @@ from ..savesync import SaveSnapshot
 from ..watcher import SaveWatcher
 from ..config import Config
 from ..filtering import CATEGORY_LABELS, EXPANSION_LABELS, STATUS_LABELS, Criteria
-from ..profiles import STATUSES, Profile, ProfileStore
+from ..profiles import Profile, ProfileStore
 from ..questdata import QuestDB
 from . import theme
 from .quest_page import QuestPage
 from .scroll import ScrollFrame
-from .quest_table import COL_LEVEL, COL_NAME, COL_STATUS, QuestTableModel, QuestTableView
+from .quest_table import COL_LEVEL, COL_NAME, COL_OPEN, COL_STATUS, QuestTableModel, QuestTableView
 
 ALL = "__all__"
 
@@ -92,13 +89,10 @@ class MainWindow(QMainWindow):
         else:
             self.profile = store.ensure_default()
         self._current_id: str | None = None
-        self._loading_detail = False
 
         self.setWindowTitle("Witcher 3 Quest Tracker")
         self.resize(1400, 860)
 
-        self._note_timer = QTimer(self, singleShot=True, interval=600)
-        self._note_timer.timeout.connect(self._save_note)
 
         self.watcher = SaveWatcher(self)
         central = ScrollFrame()
@@ -272,13 +266,14 @@ class MainWindow(QMainWindow):
         self.table.selectionModel().currentRowChanged.connect(self._on_row_changed)
         self.table.activated.connect(lambda idx: self.open_page(self.model.quest_at(idx.row())["id"]))
         self.table.doubleClicked.connect(lambda idx: self.open_page(self.model.quest_at(idx.row())["id"]))
+        # the "Details ›" cell at the end of each row opens the quest page with one click
+        self.table.clicked.connect(lambda idx: idx.column() == COL_OPEN
+                                   and self.open_page(self.model.quest_at(idx.row())["id"]))
         splitter.addWidget(self.table)
 
-        splitter.addWidget(self._build_detail())
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
-        splitter.setStretchFactor(2, 0)
-        splitter.setSizes([238, 862, 300])
+        splitter.setSizes([238, 1100])
         return splitter
 
     def _build_filters(self) -> QWidget:
@@ -348,87 +343,6 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.result_count)
         lay.addStretch(1)
         return w
-
-    def _build_detail(self) -> QWidget:
-        outer = QScrollArea(widgetResizable=True)
-        outer.setMinimumWidth(280)
-        w = QWidget()
-        lay = QVBoxLayout(w)
-        lay.setContentsMargins(12, 4, 4, 4)
-        lay.setSpacing(8)
-
-        self.d_title = QLabel(objectName="questTitle", wordWrap=True)
-        self.d_alt = _muted()
-        self.d_meta = _muted()
-        lay.addWidget(self.d_title)
-        lay.addWidget(self.d_alt)
-        lay.addWidget(self.d_meta)
-        self.d_more = QPushButton("More details  ›", objectName="primary")
-        self.d_more.setToolTip("Open the full quest page (double-click or Enter in the list)")
-        self.d_more.clicked.connect(lambda: self._current_id and self.open_page(self._current_id))
-        lay.addWidget(self.d_more)
-
-        self.d_warning = QFrame(objectName="warning")
-        wl = QVBoxLayout(self.d_warning)
-        self.d_warning_text = QLabel(wordWrap=True)
-        self.d_warning_text.setOpenExternalLinks(True)
-        self.d_warning_text.setTextFormat(Qt.RichText)
-        wl.addWidget(self.d_warning_text)
-        lay.addWidget(self.d_warning)
-
-        self.d_status_label = _section("Status")
-        lay.addWidget(self.d_status_label)
-        self.d_status = QWidget()
-        grid = QGridLayout(self.d_status)
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.setSpacing(4)
-        self.status_group = QButtonGroup(self)
-        self.status_buttons: dict[str, QPushButton] = {}
-        short = {"not_started": "Not started", "in_progress": "In progress",
-                 "completed": "Completed", "failed": "Failed / Missed"}
-        for i, st in enumerate(STATUSES):
-            b = QPushButton(short[st], objectName="statusButton", checkable=True)
-            b.clicked.connect(lambda _=False, v=st: self._on_manual_status(v))
-            self.status_group.addButton(b)
-            self.status_buttons[st] = b
-            grid.addWidget(b, i // 2, i % 2)
-        lay.addWidget(self.d_status)
-        eff = QHBoxLayout()
-        self.d_effective = _muted()
-        eff.addWidget(self.d_effective, 1)
-        self.d_reset = QPushButton("use save status", objectName="linkButton")
-        self.d_reset.setCursor(Qt.PointingHandCursor)
-        self.d_reset.clicked.connect(lambda: self._on_manual_status(None))
-        eff.addWidget(self.d_reset)
-        lay.addLayout(eff)
-
-        self.d_desc_label = _section("Description")
-        lay.addWidget(self.d_desc_label)
-        self.d_desc = QTextBrowser()
-        self.d_desc.setMinimumHeight(140)
-        lay.addWidget(self.d_desc, 2)
-
-        self.d_notes_label = _section("Notes")
-        lay.addWidget(self.d_notes_label)
-        self.d_notes = QPlainTextEdit(objectName="notes", placeholderText="Write your notes here…")
-        self.d_notes.setMinimumHeight(110)
-        self.d_notes.textChanged.connect(self._on_notes_changed)
-        lay.addWidget(self.d_notes, 1)
-
-        self.d_ids = _muted()
-        self.d_ids.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        lay.addWidget(self.d_ids)
-
-        self.d_empty = _muted("Select a quest.")
-        lay.addWidget(self.d_empty)
-        outer.setWidget(w)
-        self._detail_widgets = [self.d_title, self.d_alt, self.d_meta, self.d_more, self.d_status, self.d_effective,
-                                self.d_desc, self.d_notes, self.d_ids, self.d_status_label, self.d_reset,
-                                self.d_desc_label, self.d_notes_label]
-        self._show_detail(None)
-        return outer
-
-    # ------------------------------------------------------------ save sync
 
     def _build_save_bar(self) -> QFrame:
         bar = QFrame(objectName="saveBar")
@@ -632,7 +546,6 @@ class MainWindow(QMainWindow):
         # the overview tabs are rebuilt lazily, when they are actually shown
         self._views_dirty = True
         self._refresh_visible_tab()
-        self._show_detail(self.db.by_id.get(self._current_id) if self._current_id else None)
         if self.stack.currentWidget() is self.page and self.page.quest:
             self.page.show_quest(self.db.by_id[self.page.quest["id"]], self.db, self.profile,
                                  self.config.name_lang, self._entry_status())
@@ -730,7 +643,7 @@ class MainWindow(QMainWindow):
                     f'  <span style="color:{theme.MUTED}">({STATUS_LABELS[ms]}{", probably missed" if passed and ms not in filtering.DONE else ""})'
                     f' — {m.get("missable_reason") or ""}</span>')
                 link.setWordWrap(True)
-                link.linkActivated.connect(self.select_quest)
+                link.linkActivated.connect(self.open_page)
                 bl.addWidget(link)
             lay.addWidget(box)
         lay.addStretch(1)
@@ -798,75 +711,10 @@ class MainWindow(QMainWindow):
     def _on_row_changed(self, current, _previous) -> None:
         q = self.model.quest_at(current.row()) if current.isValid() else None
         if q is not None:
-            self._flush_note()
             self._current_id = q["id"]
-        self._show_detail(q)
-
-    def _show_detail(self, q: dict | None) -> None:
-        self._loading_detail = True
-        try:
-            for wdg in self._detail_widgets:
-                wdg.setVisible(q is not None)
-            self.d_empty.setVisible(q is None)
-            self.d_warning.setVisible(bool(q and q.get("missable")))
-            if q is None:
-                return
-            lang = self.config.name_lang
-            self.d_title.setText(filtering.display_name(q, lang))
-            alt = q["name"] if lang == "de" else q.get("name_de")
-            self.d_alt.setText(alt if alt and alt != self.d_title.text() else "")
-            level = q.get("suggested_level")
-            self.d_meta.setText(" · ".join(filter(None, [
-                CATEGORY_LABELS[q["category"]], filtering.region_of(q),
-                f"Level {level}" if level is not None else "Level unknown",
-                EXPANSION_LABELS[q["expansion"]],
-            ])))
-            if q.get("missable"):
-                ponr = self.db.by_id.get(q.get("point_of_no_return") or "")
-                text = f"<b>⚠ Missable.</b> {q.get('missable_reason') or ''}"
-                if ponr:
-                    text += f"<br>Do it before: <b>{filtering.display_name(ponr, lang)}</b>"
-                if q.get("note"):
-                    text += f'<br><span style="color:{theme.MUTED}">{q["note"]}</span>'
-                text += "<br>" + self._sources_html(q)
-                self.d_warning_text.setText(text)
-            manual = self.profile.manual_status.get(q["id"])
-            saved = self.profile.save_status.get(q["id"])
-            eff = self.profile.status(q["id"])
-            self.status_buttons[eff].setChecked(True)
-            src = f"From save: {STATUS_LABELS[saved] if saved else '—'}"
-            if manual:
-                src += f" · set by hand: {STATUS_LABELS[manual]}"
-            self.d_effective.setText(src)
-            self.d_reset.setVisible(manual is not None)
-            desc = q.get("description_de") if lang == "de" else q.get("description")
-            # Game texts contain simple markup such as <br>.
-            self.d_desc.setHtml(desc or q.get("description") or "<i>No description in the game files.</i>")
-            self.d_notes.setPlainText(self.profile.notes.get(q["id"], ""))
-            self.d_ids.setText(f"{q['id']} · {q['save_ids']['guid']}")
-        finally:
-            self._loading_detail = False
-
-    def _on_manual_status(self, status: str | None) -> None:
-        if not self._current_id:
-            return
-        self.profile.set_manual(self._current_id, status)
-        self._persist()
-        self.refresh_all()
-
-    def _on_notes_changed(self) -> None:
-        if not self._loading_detail:
-            self._note_timer.start()
 
     def _flush_note(self) -> None:
-        if self._note_timer.isActive():
-            self._note_timer.stop()
-            self._save_note()
-
-    def _save_note(self) -> None:
-        if self._current_id:
-            self.profile.set_note(self._current_id, self.d_notes.toPlainText())
-            self._persist()
+        self.page.flush()
 
     # ------------------------------------------------------------ profile actions
 

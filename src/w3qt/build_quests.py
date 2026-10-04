@@ -18,6 +18,7 @@ import csv
 import io
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -57,7 +58,9 @@ QUEST_TYPES = {
 CONTENT = {None: "base", "EJCT_Vanilla": "base", "EJCT_EP1": "hearts_of_stone", "EJCT_EP2": "blood_and_wine"}
 
 # Developer content that ships in the bundles but is not part of the game.
-EXCLUDED_GROUPS = ("Demo Quests", "[PL] Test Level")
+EXCLUDED_GROUPS = ("Demo Quests", "[PL] Test Level", "Test Level")
+
+DEV_MARKERS = re.compile(r"^\s*(?:\[(?:[A-Z]{2}|DEBUG|TODO|WIP|PH)\]\s*)+")
 
 UNVERIFIED_FIELDS = ["quest_giver", "missable", "missable_reason", "prerequisites"]
 
@@ -161,7 +164,9 @@ def main() -> int:
         strings[lang] = s
 
     def text(lang: str, sid: int | None) -> str | None:
-        return strings[lang].get(sid) if sid else None
+        t = strings[lang].get(sid) if sid else None
+        # developer markers such as "[EN] [DEBUG]" in front of a few game texts
+        return DEV_MARKERS.sub("", t) if t else t
 
     out = []
     skipped = []
