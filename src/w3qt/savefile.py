@@ -1,6 +1,6 @@
 """Read-only parser for The Witcher 3 (REDengine 3) .sav files.
 
-Layout as reverse-engineered from real saves (save versions 64 and 66):
+Layout as reverse-engineered from real saves (save version 66, game 5.0):
 
 Container (on disk)
     "SNFHFZLC"                  magic
@@ -38,6 +38,8 @@ STREAM_MAGIC = b"SAV3"
 STRING_TABLE_MAGIC = b"MANU"
 FOOTER_MAGIC = b"SE"
 STRUCTURED_TAGS = (b"BS", b"VL", b"SS", b"OP")
+# Only the current next-gen/REDkit format (game 4.04+/5.0) is supported.
+SUPPORTED_SAVE_VERSIONS = (66,)
 
 
 class SaveFormatError(Exception):
@@ -171,6 +173,8 @@ def parse_bytes(raw: bytes, path: Path | str = "<memory>") -> SaveFile:
     if data[-2:] != FOOTER_MAGIC:
         raise SaveFormatError("footer magic SE missing (truncated?)")
     save_version, game_version = struct.unpack_from("<II", data, 4)
+    if save_version not in SUPPORTED_SAVE_VERSIONS:
+        raise SaveFormatError(f"unsupported save version {save_version} (supported: {SUPPORTED_SAVE_VERSIONS})")
     str_off, _unk, var_off = struct.unpack_from("<III", data, len(data) - 14)
     str_off -= header_size
     var_off -= header_size

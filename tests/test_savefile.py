@@ -1,18 +1,18 @@
 import struct
 import sys
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from w3qt import lz4block  # noqa: E402
+from w3qt import lz4block, savefile  # noqa: E402
 from w3qt.savedata import facts, journal_entries, metadata, quest_tree  # noqa: E402
 from w3qt.savefile import SaveFormatError, open_save, parse_bytes, read_cstring  # noqa: E402
 
 FIXTURES = Path(__file__).parent / "fixtures" / "saves"
-NEXTGEN = FIXTURES / "ManualSave_11b6cd_7ea48c00_411cb11.sav"   # save v66, Toussaint
-OLDER = FIXTURES / "ManualSave_52581_7ea0bc00_88839e.sav"       # save v64, Velen
-EARLY = FIXTURES / "ManualSave_8559a_7e95a800_301d559.sav"      # save v64, White Orchard
+NEXTGEN = FIXTURES / "ManualSave_11b6cd_7ea48c00_411cb11.sav"   # Toussaint, level 38
+CHECKPOINT = FIXTURES / "CheckPoint_11b6cd_7ea48c00_3cd014e.sav"  # same run, level 37
 
 
 def all_saves():
@@ -49,7 +49,7 @@ class TestContainer(unittest.TestCase):
         for p in saves:
             with self.subTest(p.name):
                 s = open_save(p)
-                self.assertIn(s.save_version, (64, 66))
+                self.assertEqual(s.save_version, 66)
                 self.assertIsNotNone(s.block("CJournalManager"))
 
     def test_rejects_non_save(self):
@@ -62,8 +62,13 @@ class TestContainer(unittest.TestCase):
             parse_bytes(raw[: len(raw) // 2])
 
     def test_versions(self):
-        self.assertEqual((open_save(NEXTGEN).save_version, open_save(NEXTGEN).game_version), (66, 29))
-        self.assertEqual(open_save(OLDER).save_version, 64)
+        s = open_save(NEXTGEN)
+        self.assertEqual((s.save_version, s.game_version), (66, 29))
+
+    def test_rejects_unsupported_version(self):
+        with mock.patch.object(savefile, "SUPPORTED_SAVE_VERSIONS", (64,)):
+            with self.assertRaises(SaveFormatError):
+                open_save(NEXTGEN)
 
 
 class TestMetadata(unittest.TestCase):
@@ -73,15 +78,9 @@ class TestMetadata(unittest.TestCase):
         self.assertEqual(m["player_level"], 38)
         self.assertTrue(m["initial_build_id"].startswith("5.0"))
 
-    def test_older(self):
-        m = metadata(open_save(OLDER))
-        self.assertEqual(m["region"], "Velen / Novigrad")
-        self.assertEqual(m["player_level"], 16)
-        self.assertIsNone(m["initial_build_id"])  # block only exists in v66
-
-    def test_early(self):
-        m = metadata(open_save(EARLY))
-        self.assertEqual((m["region"], m["player_level"]), ("White Orchard", 1))
+    def test_checkpoint(self):
+        m = metadata(open_save(CHECKPOINT))
+        self.assertEqual((m["region"], m["player_level"]), ("Toussaint", 37))
 
 
 class TestJournal(unittest.TestCase):
@@ -112,8 +111,8 @@ class TestJournal(unittest.TestCase):
     def test_progress_grows(self):
         def count(p):
             return sum(len(g["quests"]) for g in quest_tree(journal_entries(open_save(p))))
-        self.assertLess(count(EARLY), count(OLDER))
-        self.assertLess(count(OLDER), count(NEXTGEN))
+        self.assertEqual(count(CHECKPOINT), count(NEXTGEN))
+        self.assertLess(len(facts(open_save(CHECKPOINT))), len(facts(open_save(NEXTGEN))))
 
 
 class TestFacts(unittest.TestCase):

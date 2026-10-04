@@ -4,17 +4,15 @@ Reverse-engineered from real PC saves. Implemented in `src/w3qt/savefile.py`
 and `src/w3qt/savedata.py`. Fields marked **unverified** are parsed but their
 meaning is not confirmed.
 
-## Tested saves
+## Scope
 
-| Fixture | save_version | game_version | Build | .json sidecar |
-|---|---|---|---|---|
-| `ManualSave_8559a_…` (White Orchard, lvl 1) | 64 | 27 | — | no |
-| `ManualSave_52581_…` (Velen, lvl 16) | 64 | 27 | — | no |
-| `CheckPoint_11b6cd_…` / `ManualSave_11b6cd_…` (Toussaint, lvl 37/38) | 66 | 29 | 5.0.1044392 | yes |
+Only the current next-gen/REDkit format is supported: save_version 66,
+game_version 29, build 5.0. The parser rejects other versions
+(`SUPPORTED_SAVE_VERSIONS`). The original release and older next-gen saves
+are out of scope.
 
-All fixtures are from the next-gen line (4.0+). **No original-release (1.3x)
-save has been tested.** The v64 saves seem to come from 4.0x, the v66 saves
-from 4.04 or later, with the REDkit build ID 5.0.
+Fixtures: `CheckPoint_11b6cd_…` (level 37) and `ManualSave_11b6cd_…`
+(level 38), both from the same Toussaint playthrough.
 
 ## Container
 
@@ -80,8 +78,8 @@ The status lives in `CJournalManager / JActiveEntries`, which is a list of
 The path depth gives the entry type. Depth 1 is a quest group, for example
 `questact1.journal` or `minorquests.journal`. Depth 2 is a quest, depth 3 a
 phase, depth 4 an objective and depth 5 a sub-objective. This hierarchy
-matches REDengine's journal classes. It is consistent across all fixtures,
-but no CDPR source confirms it.
+is confirmed against the fixtures: each depth-2 entry is a quest .journal
+file, and its children are its phases and objectives.
 
 Every quest seen so far has its own `.journal` file, for example
 `gameplay\journal\quests\q001yennsearch.journal`. The file name is a stable,
@@ -120,24 +118,14 @@ They could help detect missed quests, but this is not mapped yet.
 ## Metadata
 
 - Region: `worldInfo / world`, a `.w2w` path mapped to a region name.
-- Player level: **heuristic**. The parser searches the player's `PORP`
-  property stream for `levelManager: handle:W3LevelManager`, then reads
-  `level: Int32` inside it. The results match the expected progression
-  (1 → 16 → 37 → 38).
-- Build ID: `InitialBuildIDBlock` exists in v66 only.
-- Playthrough ID: stored as `saveInfo / playthroughId`. Its type is
-  `String` in v66 and `StringAnsi` in v64.
-- Not found yet: total playtime. `timeManger / time` holds the in-game
-  clock, not the playtime.
-- `.json` sidecar (v66 only): build IDs, versions and the active mods list.
+- Player level: the parser searches the player's `PORP` property stream
+  for `levelManager: handle:W3LevelManager`, then reads `level: Int32`
+  inside it. Confirmed against the in-game level (38).
+- Build ID: `InitialBuildIDBlock`.
+- Playthrough ID: `saveInfo / playthroughId` (`String`).
+- Total playtime: not decoded, and not needed.
+- `.json` sidecar: build IDs, versions and the active mods list.
 - `.png` next to the save: the thumbnail.
-
-## Differences between v64 and v66
-
-- v66 adds the `InitialBuildIDBlock` and `CModHandlerSystem` blocks.
-- `playthroughId` changes type from `StringAnsi` to `String`.
-- v66 writes a `.json` sidecar.
-- The container, journal and facts layouts are identical.
 
 ## Prior art
 

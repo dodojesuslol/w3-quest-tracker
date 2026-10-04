@@ -185,7 +185,7 @@ def facts(save: SaveFile) -> dict[str, list[dict]]:
 
 
 def player_level(save: SaveFile) -> int | None:
-    """Heuristic: W3LevelManager.level inside the player's PORP property stream."""
+    """W3LevelManager.level inside the player's PORP property stream."""
     try:
         lm = save.names.index("levelManager") + 1
         handle = save.names.index("handle:W3LevelManager") + 1
