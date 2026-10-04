@@ -385,7 +385,7 @@ class MainWindow(QMainWindow):
         return bar
 
     def watcher_sync(self) -> None:
-        self.watcher.sync_now()
+        self.watcher.force_sync()
 
     def _resolve_save_dir(self) -> Path | None:
         if self.config.save_dir:

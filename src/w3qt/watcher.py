@@ -44,11 +44,18 @@ class _Job(QRunnable):
         self.watcher._done.emit(self.generation, snap)
 
 
+# Only events that mean "a file changed". Opening and closing without writing
+# must be ignored: our own reads produce them and would loop forever.
+CHANGE_EVENTS = {"created", "modified", "moved", "deleted", "closed"}
+
+
 class _Handler(FileSystemEventHandler):
     def __init__(self, watcher: "SaveWatcher"):
         self.watcher = watcher
 
     def on_any_event(self, event):
+        if event.is_directory or event.event_type not in CHANGE_EVENTS:
+            return
         path = getattr(event, "dest_path", "") or event.src_path
         if str(path).lower().endswith(RELEVANT):
             self.watcher._fs_event.emit()
@@ -74,7 +81,8 @@ class SaveWatcher(QObject):
         self._pending = False
         self._generation = 0  # bumped on stop(); results of older jobs are dropped
         self._retries = 0
-        self._last_seen: tuple[str, float] | None = None
+        self._last_seen: tuple[str, float, int] | None = None
+        self._force = False
         self._pool = QThreadPool(self)
         self._pool.setMaxThreadCount(1)
 
@@ -109,6 +117,7 @@ class SaveWatcher(QObject):
 
     def stop(self) -> None:
         self._generation += 1
+        self._last_seen = None
         self._running = False
         self._pending = False
         self._retries = 0
@@ -122,6 +131,12 @@ class SaveWatcher(QObject):
         if self._qt_watcher is not None:
             self._qt_watcher.deleteLater()
             self._qt_watcher = None
+
+    @Slot()
+    def force_sync(self) -> None:
+        """Reload and re-emit even if the newest save has not changed."""
+        self._force = True
+        self.sync_now()
 
     @Slot()
     def sync_now(self) -> None:
@@ -148,7 +163,15 @@ class SaveWatcher(QObject):
         if snap is None:
             self.failed.emit("No usable save found in the save folder.")
             return
-        self._last_seen = (snap.path.name, snap.mtime)
+        try:
+            key = (snap.path.name, snap.mtime, snap.path.stat().st_size)
+        except OSError:
+            key = (snap.path.name, snap.mtime, -1)
+        force, self._force = self._force, False
+        if key == self._last_seen and not force:
+            self.busy.emit("")
+            return  # nothing new; do not refresh the UI
+        self._last_seen = key
         self.snapshot_ready.emit(snap)
 
     def _on_error(self, generation: int, msg: str) -> None:
@@ -174,6 +197,6 @@ class SaveWatcher(QObject):
             return
         saves = list_saves(self.directory)
         if saves:
-            newest = (saves[0].name, saves[0].stat().st_mtime)
-            if newest != self._last_seen:
+            st = saves[0].stat()
+            if (saves[0].name, st.st_mtime, st.st_size) != self._last_seen:
                 self.sync_now()
