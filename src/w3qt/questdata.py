@@ -6,7 +6,10 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-DEFAULT_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "quests.json"
+DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+DEFAULT_PATH = DATA_DIR / "quests.json"
+MISSABLE_PATH = DATA_DIR / "missable.json"
+OVERLAY_FIELDS = ("missable", "missable_reason", "point_of_no_return", "source", "verified")
 
 # save journal status -> tracker status
 STATUS_FROM_SAVE = {
@@ -20,12 +23,18 @@ STATUS_FROM_SAVE = {
 @dataclass
 class QuestDB:
     quests: list[dict]
+    points_of_no_return: list[dict] = field(default_factory=list)
+    by_id: dict[str, dict] = field(init=False)
     by_resource: dict[str, dict] = field(init=False)
     by_guid: dict[str, dict] = field(init=False)
 
     def __post_init__(self):
+        self.by_id = {q["id"]: q for q in self.quests}
         self.by_resource = {q["save_ids"]["journal_resource"].lower(): q for q in self.quests}
         self.by_guid = {q["save_ids"]["guid"]: q for q in self.quests}
+
+    def missables_for(self, ponr_quest_id: str) -> list[dict]:
+        return [q for q in self.quests if q.get("point_of_no_return") == ponr_quest_id]
 
     def lookup(self, resource: str | None, guid: str | None) -> dict | None:
         if guid and guid in self.by_guid:
@@ -35,9 +44,18 @@ class QuestDB:
         return None
 
 
-def load(path: Path | str = DEFAULT_PATH) -> QuestDB:
+def load(path: Path | str = DEFAULT_PATH, missable_path: Path | str | None = MISSABLE_PATH) -> QuestDB:
     doc = json.loads(Path(path).read_text())
-    return QuestDB(doc["quests"])
+    quests = doc["quests"]
+    ponr: list[dict] = []
+    if missable_path and Path(missable_path).is_file():
+        overlay = json.loads(Path(missable_path).read_text())
+        by_id = {q["id"]: q for q in quests}
+        for qid, extra in overlay.get("quests", {}).items():
+            if qid in by_id:
+                by_id[qid].update({k: extra[k] for k in OVERLAY_FIELDS if k in extra})
+        ponr = [p for p in overlay.get("points_of_no_return", []) if p["quest_id"] in by_id]
+    return QuestDB(quests, ponr)
 
 
 @dataclass

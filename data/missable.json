@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "note": "Hand-curated overlay merged onto quests.json at load time. Entries come from Claude's general knowledge of the game, not from game files, and are all unverified. Correct or extend them as you play.",
+  "points_of_no_return": [
+    {
+      "quest_id": "q002bandits",
+      "effect": "Completing this quest takes Geralt from White Orchard to Vizima. White Orchard cannot be revisited afterwards (until a late story visit), so its open side quests fail.",
+      "source": "claude-knowledge",
+      "verified": false
+    },
+    {
+      "quest_id": "q403battle",
+      "effect": "Vesemir dies during the battle. Anything that needs him, such as winning his Gwent card, is lost afterwards.",
+      "source": "claude-knowledge",
+      "verified": false
+    },
+    {
+      "quest_id": "q210preparations",
+      "effect": "The game shows a point-of-no-return warning before the final act. Many open secondary quests can no longer be completed afterwards.",
+      "source": "claude-knowledge",
+      "verified": false
+    }
+  ],
+  "quests": {
+    "mq0003freshwater": {"missable": true, "missable_reason": "White Orchard quest; fails when you leave White Orchard.", "point_of_no_return": "q002bandits", "source": "claude-knowledge", "verified": false},
+    "mq0004lockedshed": {"missable": true, "missable_reason": "White Orchard quest; fails when you leave White Orchard.", "point_of_no_return": "q002bandits", "source": "claude-knowledge", "verified": false},
+    "mq0001battlefieldmother": {"missable": true, "missable_reason": "White Orchard quest; fails when you leave White Orchard.", "point_of_no_return": "q002bandits", "source": "claude-knowledge", "verified": false},
+    "q002healingwoman": {"missable": true, "missable_reason": "White Orchard quest; fails when you leave White Orchard.", "point_of_no_return": "q002bandits", "source": "claude-knowledge", "verified": false},
+    "mq0002thefield": {"missable": true, "missable_reason": "White Orchard quest; fails when you leave White Orchard.", "point_of_no_return": "q002bandits", "source": "claude-knowledge", "verified": false},
+    "mq0005dwarfsmith": {"missable": true, "missable_reason": "White Orchard quest; fails when you leave White Orchard.", "point_of_no_return": "q002bandits", "source": "claude-knowledge", "verified": false},
+    "lwprologuedeserterstash": {"missable": true, "missable_reason": "White Orchard treasure; unreachable once you leave White Orchard.", "point_of_no_return": "q002bandits", "source": "claude-knowledge", "verified": false},
+    "lwprologuebandittreasure": {"missable": true, "missable_reason": "White Orchard treasure; unreachable once you leave White Orchard.", "point_of_no_return": "q002bandits", "source": "claude-knowledge", "verified": false},
+    "lwprologuetemeriantreasure": {"missable": true, "missable_reason": "White Orchard treasure; unreachable once you leave White Orchard.", "point_of_no_return": "q002bandits", "source": "claude-knowledge", "verified": false},
+    "cgoldfriends": {"missable": true, "missable_reason": "Needs a Gwent card won from Vesemir, who dies in the Battle of Kaer Morhen.", "point_of_no_return": "q403battle", "source": "claude-knowledge", "verified": false},
+    "cgmetagatherall": {"missable": true, "missable_reason": "Several unique cards can only be won from NPCs who die or leave during the story (e.g. Vesemir).", "point_of_no_return": "q403battle", "source": "claude-knowledge", "verified": false}
+  }
+}

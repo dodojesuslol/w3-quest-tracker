@@ -47,7 +47,8 @@ class TestQuestsJson(unittest.TestCase):
     def test_unverified_fields_left_empty(self):
         for q in self.db.quests:
             self.assertIsNone(q["quest_giver"])
-            self.assertIsNone(q["missable"])
+            if q["missable"] is not None:  # only from the hand-curated overlay
+                self.assertEqual((q["source"], q["verified"]), ("claude-knowledge", False))
 
 
 class TestMapping(unittest.TestCase):
