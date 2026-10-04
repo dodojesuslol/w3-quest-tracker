@@ -244,13 +244,13 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setStretchFactor(2, 0)
-        splitter.setSizes([250, 820, 330])
+        splitter.setSizes([225, 875, 300])
         return splitter
 
     def _build_filters(self) -> QWidget:
         w = QWidget()
-        w.setMinimumWidth(240)
-        w.setMaximumWidth(290)
+        w.setMinimumWidth(215)
+        w.setMaximumWidth(260)
         lay = QVBoxLayout(w)
         lay.setContentsMargins(4, 4, 8, 4)
 
@@ -311,7 +311,7 @@ class MainWindow(QMainWindow):
 
     def _build_detail(self) -> QWidget:
         outer = QScrollArea(widgetResizable=True)
-        outer.setMinimumWidth(300)
+        outer.setMinimumWidth(280)
         w = QWidget()
         lay = QVBoxLayout(w)
         lay.setContentsMargins(12, 4, 4, 4)

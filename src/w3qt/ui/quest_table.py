@@ -136,7 +136,7 @@ class QuestTableView(QTableView):
     scrollbar appears instead of squeezing the names.
     """
 
-    NAME_MIN_WIDTH = 240
+    NAME_MIN_WIDTH = 210
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

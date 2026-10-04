@@ -18,20 +18,20 @@ TITLE_FONT = "IM FELL English SC"
 # Names kept from the earlier theme so other modules need no changes.
 DESK = "#2a2017"          # table the scroll lies on
 BG = "#e6d5ad"            # parchment (dialogs, popups)
-PANEL = "rgba(255, 248, 226, 0.45)"
+PANEL = "rgba(255, 250, 235, 0.72)"
 PANEL_SOLID = "#efe2c2"
 PANEL_2 = "rgba(120, 88, 40, 0.07)"
 BORDER = "#a88a5a"
-TEXT = "#3a2716"          # ink
-MUTED = "#76603f"
+TEXT = "#24160a"          # ink
+MUTED = "#5a4528"
 ACCENT = "#8a1f1a"        # wax seal
 ACCENT_HI = "#a8302a"
 SELECTION = "#d4b680"
 
 STATUS_COLORS = {
-    "not_started": "#7a6548",
-    "in_progress": "#2f4c6e",   # blue-black ink
-    "completed": "#3f6a2c",     # green ink
+    "not_started": "#5f4b30",
+    "in_progress": "#1f3f66",   # blue-black ink
+    "completed": "#2f5c1e",     # green ink
     "failed": "#8a1f1a",
 }
 
@@ -41,9 +41,10 @@ def load_fonts() -> None:
         QFontDatabase.addApplicationFont(str(f))
 
 
-def body_font(size: float = 12.0) -> QFont:
+def body_font(size: float = 13.0) -> QFont:
     f = QFont(BODY_FONT)
     f.setPointSizeF(size)
+    f.setWeight(QFont.Medium)  # Garamond's regular weight is thin on screen
     return f
 
 
@@ -64,7 +65,7 @@ def palette() -> QPalette:
 
 
 STYLESHEET = f"""
-* {{ font-family: "{BODY_FONT}"; font-size: 11.5pt; color: {TEXT}; }}
+* {{ font-family: "{BODY_FONT}"; font-size: 13pt; font-weight: 500; color: {TEXT}; }}
 QMainWindow {{ background: {DESK}; }}
 QDialog, QMessageBox, QFileDialog {{ background: {BG}; }}
 QToolTip {{ background: {PANEL_SOLID}; border: 1px solid {BORDER}; padding: 4px; }}
@@ -109,7 +110,7 @@ QTableView::item {{ border-bottom: 1px solid rgba(120, 90, 50, 0.18); padding: 0
 QHeaderView {{ background: transparent; }}
 QHeaderView::section {{
     background: transparent; color: {MUTED}; border: none; border-bottom: 2px solid {ACCENT};
-    padding: 4px 6px; font-family: "{TITLE_FONT}"; font-size: 12pt;
+    padding: 4px 6px; font-family: "{TITLE_FONT}"; font-size: 13pt; color: {TEXT};
 }}
 QTableCornerButton::section {{ background: transparent; border: none; }}
 
@@ -123,7 +124,7 @@ QTabBar::tab:hover {{ color: {TEXT}; }}
 
 QProgressBar {{
     background: rgba(255, 248, 226, 0.5); border: 1px solid {BORDER}; border-radius: 3px;
-    text-align: center; min-height: 18px; font-style: italic;
+    text-align: center; min-height: 20px; font-weight: 600;
 }}
 QProgressBar::chunk {{
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #a8302a, stop:1 #6e1713);
@@ -147,10 +148,10 @@ QFrame#saveBar {{
     background: rgba(255, 248, 226, 0.3); border: 1px solid {BORDER}; border-radius: 3px;
 }}
 QLabel#thumb {{ border: 2px solid #6b4f2a; background: #3a2c1c; }}
-QLabel#muted {{ color: {MUTED}; font-style: italic; }}
+QLabel#muted {{ color: {MUTED}; }}
 QLabel#title {{ font-family: "{TITLE_FONT}"; font-size: 26pt; color: {TEXT}; }}
 QLabel#questTitle {{ font-family: "{TITLE_FONT}"; font-size: 19pt; color: {TEXT}; }}
-QLabel#sectionTitle {{ font-family: "{TITLE_FONT}"; font-size: 13pt; color: {ACCENT}; }}
+QLabel#sectionTitle {{ font-family: "{TITLE_FONT}"; font-size: 14pt; color: {ACCENT}; }}
 
 QSplitter::handle {{ background: transparent; }}
 QSplitter::handle:horizontal {{ border-left: 1px solid rgba(120, 90, 50, 0.35); margin: 8px 3px; }}
@@ -166,6 +167,6 @@ QMenu {{ background: {PANEL_SOLID}; border: 1px solid {BORDER}; padding: 4px; }}
 QMenu::item {{ padding: 4px 22px 4px 18px; }}
 QMenu::item:selected {{ background: {SELECTION}; }}
 QMenu::separator {{ height: 1px; background: {BORDER}; margin: 4px 8px; }}
-QStatusBar {{ background: transparent; color: #d9c79f; font-style: italic; }}
+QStatusBar {{ background: transparent; color: #d9c79f; }}
 QStatusBar QLabel {{ color: #d9c79f; }}
 """
