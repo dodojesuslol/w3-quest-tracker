@@ -98,6 +98,10 @@ QPushButton#statusButton {{ padding: 4px 6px; }}
 QPushButton#statusButton:checked {{
     background: {ACCENT}; border-color: #5e1210; color: #f6ead0; font-weight: 600;
 }}
+QPushButton#primary {{
+    background: {ACCENT}; border: 1px solid #5e1210; color: #f6ead0; font-weight: 600; padding: 4px 14px;
+}}
+QPushButton#primary:hover {{ background: {ACCENT_HI}; }}
 QPushButton#linkButton {{
     background: transparent; border: none; color: {ACCENT}; text-decoration: underline; padding: 0;
 }}
@@ -150,6 +154,7 @@ QFrame#saveBar {{
 QLabel#thumb {{ border: 2px solid #6b4f2a; background: #3a2c1c; }}
 QLabel#muted {{ color: {MUTED}; }}
 QLabel#title {{ font-family: "{TITLE_FONT}"; font-size: 26pt; color: {TEXT}; }}
+QLabel#pageTitle {{ font-family: "{TITLE_FONT}"; font-size: 28pt; color: {TEXT}; }}
 QLabel#questTitle {{ font-family: "{TITLE_FONT}"; font-size: 19pt; color: {TEXT}; }}
 QLabel#sectionTitle {{ font-family: "{TITLE_FONT}"; font-size: 14pt; color: {ACCENT}; }}
 

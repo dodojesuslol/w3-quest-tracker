@@ -56,6 +56,19 @@ class TestMainWindow(unittest.TestCase):
         self.assertEqual(w2.profile.status("q001yennsearch"), "completed")
         w2.close()
 
+    def test_quest_page_open_status_back(self):
+        w = self.make_window()
+        w.open_page("q001yennsearch")
+        self.assertIs(w.stack.currentWidget(), w.page)
+        self.assertIn("Lilac", w.page.alt.text() + w.page.title.text())
+        # no save loaded in this test: every objective is listed
+        self.assertIn("Vesemir", w.page.journal.toPlainText())
+        w.page.status_buttons["failed"].click()
+        self.assertEqual(w.profile.status("q001yennsearch"), "failed")
+        w.page.go_back()
+        self.assertIs(w.stack.currentWidget(), w.tabs)
+        w.close()
+
     def test_missable_filter(self):
         w = self.make_window()
         w.f_missable.setChecked(True)

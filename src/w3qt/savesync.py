@@ -9,7 +9,7 @@ from pathlib import Path
 
 from . import questdata
 from .profiles import Profile
-from .savedata import journal_entries, metadata, quest_tree
+from .savedata import is_quest_entry, journal_entries, metadata, quest_tree
 from .savefile import SaveFormatError, UnsupportedSaveVersion, open_save
 
 
@@ -22,6 +22,7 @@ class SaveSnapshot:
     quest_groups: list[dict] | None       # None if the journal could not be decoded
     warnings: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)  # newer saves that were not usable
+    entry_status: dict[str, str] = field(default_factory=dict)  # journal GUID -> status (quests only)
 
 
 @dataclass
@@ -62,13 +63,17 @@ def load_snapshot(path: Path) -> SaveSnapshot:
     except Exception as e:  # metadata is best effort
         meta = {}
         warnings.append(f"Save metadata could not be decoded ({e}).")
+    entry_status: dict[str, str] = {}
     try:
-        groups = quest_tree(journal_entries(save))
+        entries = journal_entries(save)
+        groups = quest_tree(entries)
+        entry_status = {e.guid: e.status for e in entries if is_quest_entry(e)}
     except Exception as e:
         groups = None
         warnings.append(f"Quest journal could not be decoded ({e}); manual tracking only.")
     thumb = path.with_suffix(".png")
-    return SaveSnapshot(path, mtime, thumb if thumb.is_file() else None, meta, groups, warnings)
+    return SaveSnapshot(path, mtime, thumb if thumb.is_file() else None, meta, groups, warnings,
+                        entry_status=entry_status)
 
 
 class NotReady(Exception):

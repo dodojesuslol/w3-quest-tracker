@@ -95,10 +95,16 @@ def collect(bundles: dict[str, Bundle]) -> tuple[list[dict], dict[str, dict]]:
                 }
             for q in doc.by_class("CJournalQuest"):
                 descs = sorted(
-                    (cr2w.prop_u32(d, "order") or 0, localized(d, "description"))
+                    (cr2w.prop_u32(d, "order") or 0, localized(d, "description"), cr2w.prop_guid(d))
                     for d in doc.by_class("CJournalQuestDescriptionEntry")
                     if localized(d, "description")
                 )
+                # objectives in file order, which follows the journal tree
+                objectives = [
+                    (cr2w.prop_guid(o), localized(o, "title"))
+                    for o in doc.by_class("CJournalQuestObjective")
+                    if localized(o, "title")
+                ]
                 quests.append({
                     "resource": path,
                     "bundle": bname,
@@ -110,6 +116,8 @@ def collect(bundles: dict[str, Bundle]) -> tuple[list[dict], dict[str, dict]]:
                     "content": cr2w.prop_enum(doc, q, "contentType"),
                     "world": cr2w.prop_u32(q, "world"),
                     "description_id": descs[0][1] if descs else None,
+                    "journal": [(guid, sid) for _, sid, guid in descs],
+                    "objectives": objectives,
                 })
     return quests, groups
 
@@ -194,6 +202,12 @@ def main() -> int:
             "internal_name": q["base_name"],
             "description": text("en", q["description_id"]),
             "description_de": text("de", q["description_id"]),
+            # Journal texts and objectives, each with the GUID the save uses to
+            # mark it as revealed/active/done.
+            "journal": [{"guid": g, "text": text("en", sid), "text_de": text("de", sid)}
+                        for g, sid in q["journal"]],
+            "objectives": [{"guid": g, "name": text("en", sid), "name_de": text("de", sid)}
+                           for g, sid in q["objectives"]],
         })
     out.sort(key=lambda r: (r["expansion"], r["category"], r["name"]))
     doc = {

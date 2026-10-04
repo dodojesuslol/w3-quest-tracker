@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QSpinBox,
     QSplitter,
+    QStackedWidget,
     QTabWidget,
     QToolButton,
     QMenu,
@@ -49,6 +50,7 @@ from ..filtering import CATEGORY_LABELS, EXPANSION_LABELS, STATUS_LABELS, Criter
 from ..profiles import STATUSES, Profile, ProfileStore
 from ..questdata import QuestDB
 from . import theme
+from .quest_page import QuestPage
 from .scroll import ScrollFrame
 from .quest_table import COL_LEVEL, COL_NAME, COL_STATUS, QuestTableModel, QuestTableView
 
@@ -110,9 +112,18 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.progress_tab, "Progress")
         self.ponr_tab = QScrollArea(widgetResizable=True)
         self.tabs.addTab(self.ponr_tab, "Point of no return")
-        root.addWidget(self.tabs, 1)
+        self.page = QuestPage()
+        self.page.back.connect(self.close_page)
+        self.page.status_changed.connect(self._on_page_status)
+        self.page.note_changed.connect(self._on_page_note)
+        self.page.open_quest.connect(self.open_page)
+        self.stack = QStackedWidget()
+        self.stack.addWidget(self.tabs)
+        self.stack.addWidget(self.page)
+        root.addWidget(self.stack, 1)
         self.setCentralWidget(central)
         self._snapshot: SaveSnapshot | None = None
+        self._snapshot_applied = False
         self._sync_note = ""
         self.watcher.snapshot_ready.connect(self._on_snapshot)
         self.watcher.failed.connect(self._on_sync_failed)
@@ -238,6 +249,8 @@ class MainWindow(QMainWindow):
         hh.setHighlightSections(False)
         self.table.sortByColumn(COL_NAME, Qt.AscendingOrder)
         self.table.selectionModel().currentRowChanged.connect(self._on_row_changed)
+        self.table.activated.connect(lambda idx: self.open_page(self.model.quest_at(idx.row())["id"]))
+        self.table.doubleClicked.connect(lambda idx: self.open_page(self.model.quest_at(idx.row())["id"]))
         splitter.addWidget(self.table)
 
         splitter.addWidget(self._build_detail())
@@ -323,6 +336,10 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.d_title)
         lay.addWidget(self.d_alt)
         lay.addWidget(self.d_meta)
+        self.d_more = QPushButton("More details  ›", objectName="primary")
+        self.d_more.setToolTip("Open the full quest page (double-click or Enter in the list)")
+        self.d_more.clicked.connect(lambda: self._current_id and self.open_page(self._current_id))
+        lay.addWidget(self.d_more)
 
         self.d_warning = QFrame(objectName="warning")
         wl = QVBoxLayout(self.d_warning)
@@ -378,7 +395,7 @@ class MainWindow(QMainWindow):
         self.d_empty = _muted("Select a quest.")
         lay.addWidget(self.d_empty)
         outer.setWidget(w)
-        self._detail_widgets = [self.d_title, self.d_alt, self.d_meta, self.d_status, self.d_effective,
+        self._detail_widgets = [self.d_title, self.d_alt, self.d_meta, self.d_more, self.d_status, self.d_effective,
                                 self.d_desc, self.d_notes, self.d_ids, self.d_status_label,
                                 self.d_desc_label, self.d_notes_label]
         self._show_detail(None)
@@ -442,6 +459,7 @@ class MainWindow(QMainWindow):
 
     def _apply_snapshot(self, snap: SaveSnapshot) -> None:
         result = savesync.apply_snapshot(self.profile, self.db, snap)
+        self._snapshot_applied = result.applied
         notes = list(snap.warnings)
         if not result.applied:
             notes.append(result.reason)
@@ -582,6 +600,9 @@ class MainWindow(QMainWindow):
         self._build_progress_view()
         self._build_ponr_view()
         self._show_detail(self.db.by_id.get(self._current_id) if self._current_id else None)
+        if self.stack.currentWidget() is self.page and self.page.quest:
+            self.page.show_quest(self.db.by_id[self.page.quest["id"]], self.db, self.profile,
+                                 self.config.name_lang, self._entry_status())
 
     def _refresh_overall(self) -> None:
         p = filtering.progress(self.db.quests, self.profile)
@@ -676,6 +697,39 @@ class MainWindow(QMainWindow):
         links = [f'<a href="{u}" style="color:{theme.MUTED}">{urlparse(u).netloc.removeprefix("www.")}</a>'
                  for u in entry.get("sources", [])]
         return f'<span style="color:{theme.MUTED}">Sources: {", ".join(links) or "none"}</span>'
+
+    # ------------------------------------------------------------ quest page
+
+    def _entry_status(self) -> dict[str, str] | None:
+        """Journal entry states of the synced save, if it belongs to this profile."""
+        if self._snapshot is not None and self._snapshot_applied:
+            return self._snapshot.entry_status
+        return None
+
+    def open_page(self, quest_id: str) -> None:
+        q = self.db.by_id.get(quest_id)
+        if q is None:
+            return
+        self._flush_note()
+        self._current_id = quest_id
+        self.page.show_quest(q, self.db, self.profile, self.config.name_lang, self._entry_status())
+        self.stack.setCurrentWidget(self.page)
+        self.page.setFocus()
+
+    def close_page(self) -> None:
+        self.stack.setCurrentWidget(self.tabs)
+        self.refresh_all()
+        self._reselect()
+        self.table.setFocus()
+
+    def _on_page_status(self, quest_id: str, status: str | None) -> None:
+        self.profile.set_manual(quest_id, status)
+        self._persist()
+        self.refresh_all()
+
+    def _on_page_note(self, quest_id: str, text: str) -> None:
+        self.profile.set_note(quest_id, text)
+        self._persist()
 
     # ------------------------------------------------------------ detail
 
