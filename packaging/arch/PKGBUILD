@@ -2,7 +2,7 @@
 # Only committed changes are packaged.
 pkgname=w3-quest-tracker-git
 _name=w3-quest-tracker
-pkgver=r0
+pkgver=r8.gaf385c3
 pkgrel=1
 pkgdesc="Quest tracker for The Witcher 3 that follows your newest save file"
 arch=('any')

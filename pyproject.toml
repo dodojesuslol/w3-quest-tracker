@@ -12,6 +12,9 @@ fast = ["lz4"]
 [project.gui-scripts]
 w3-quest-tracker = "w3qt.ui.app:main"
 
+[project.scripts]
+w3-quest-tracker-build-quests = "w3qt.build_quests:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

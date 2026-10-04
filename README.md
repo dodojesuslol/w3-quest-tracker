@@ -42,11 +42,13 @@ sudo pacman -S pyside6 python-watchdog   # python-lz4 optional (faster)
 ./w3-quest-tracker
 ```
 
-With uv, in a project-local venv:
+With uv, in a project-local venv (`.venv/`, downloads PySide6 from PyPI, ~250 MB):
 
 ```sh
-uv sync
+uv sync                    # add --extra fast for python-lz4
 uv run w3-quest-tracker
+uv run w3-quest-tracker-build-quests   # rebuild src/w3qt/data/quests.json
+QT_QPA_PLATFORM=offscreen uv run python -m unittest discover -s tests
 ```
 
 `watchdog` is optional. Without it, the app falls back to Qt's own file
