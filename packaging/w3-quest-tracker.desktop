@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Witcher 3 Quest Tracker
+GenericName=Quest Tracker
+Comment=Track your Witcher 3 quests live from your newest save file
+Exec=w3-quest-tracker
+Icon=w3-quest-tracker
+Terminal=false
+Categories=Game;
+Keywords=witcher;quest;tracker;save;
+StartupNotify=true
+StartupWMClass=w3-quest-tracker

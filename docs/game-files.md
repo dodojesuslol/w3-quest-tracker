@@ -1,7 +1,7 @@
-# Game file formats used by tools/build_quests.py
+# Game file formats used by the quest database builder
 
-`data/quests.json` is built only from the installed game (Steam, build 5.0).
-Nothing in it is typed in by hand. Rebuild it with `tools/build_quests.py`.
+`src/w3qt/data/quests.json` is built only from the installed game (Steam, build 5.0).
+Nothing in it is typed in by hand. Rebuild it with `tools/build_quests.py` (source checkout) or `w3-quest-tracker-build-quests` (installed).
 
 ## Bundles (`content/content0/bundles/*.bundle`)
 

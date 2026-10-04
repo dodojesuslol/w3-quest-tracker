@@ -84,7 +84,7 @@ file, and its children are its phases and objectives.
 Every quest seen so far has its own `.journal` file, for example
 `gameplay\journal\quests\q001yennsearch.journal`. The file name is a stable,
 readable identifier. Combined with the GUID, it is the key for mapping to
-`data/quests.json`.
+`src/w3qt/data/quests.json`.
 
 Quests that were never discovered have no entry. The tracker cannot tell
 "not started" apart from "not yet visible in the journal".

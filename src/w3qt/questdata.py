@@ -6,9 +6,17 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
-DEFAULT_PATH = DATA_DIR / "quests.json"
+from . import paths
+
+DATA_DIR = Path(__file__).resolve().parent / "data"
+BUNDLED_PATH = DATA_DIR / "quests.json"
 MISSABLE_PATH = DATA_DIR / "missable.json"
+
+
+def default_path() -> Path:
+    """A quests.json rebuilt into the user data dir overrides the bundled one."""
+    user = paths.data_dir() / "quests.json"
+    return user if user.is_file() else BUNDLED_PATH
 OVERLAY_FIELDS = ("missable", "missable_reason", "point_of_no_return", "source", "verified")
 
 # save journal status -> tracker status
@@ -45,8 +53,8 @@ class QuestDB:
         return None
 
 
-def load(path: Path | str = DEFAULT_PATH, missable_path: Path | str | None = MISSABLE_PATH) -> QuestDB:
-    doc = json.loads(Path(path).read_text())
+def load(path: Path | str | None = None, missable_path: Path | str | None = MISSABLE_PATH) -> QuestDB:
+    doc = json.loads(Path(path or default_path()).read_text())
     quests = doc["quests"]
     ponr: list[dict] = []
     if missable_path and Path(missable_path).is_file():
