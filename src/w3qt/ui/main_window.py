@@ -6,10 +6,11 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import QItemSelectionModel, Qt, QTimer
-from PySide6.QtGui import QAction, QDesktopServices, QKeySequence, QPixmap
+from PySide6.QtGui import QAction, QActionGroup, QDesktopServices, QKeySequence, QPixmap
 from PySide6.QtCore import QDir, QUrl
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QButtonGroup,
     QCheckBox,
     QComboBox,
     QFileDialog,
@@ -31,6 +32,8 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QSplitter,
     QTabWidget,
+    QToolButton,
+    QMenu,
     QTreeView,
     QTextBrowser,
     QVBoxLayout,
@@ -46,6 +49,7 @@ from ..filtering import CATEGORY_LABELS, EXPANSION_LABELS, STATUS_LABELS, Criter
 from ..profiles import STATUSES, Profile, ProfileStore
 from ..questdata import QuestDB
 from . import theme
+from .scroll import ScrollFrame
 from .quest_table import COL_LEVEL, COL_NAME, COL_STATUS, QuestTableModel, QuestTableView
 
 ALL = "__all__"
@@ -93,9 +97,10 @@ class MainWindow(QMainWindow):
         self._note_timer = QTimer(self, singleShot=True, interval=600)
         self._note_timer.timeout.connect(self._save_note)
 
-        central = QWidget()
+        self.watcher = SaveWatcher(self)
+        central = ScrollFrame()
         root = QVBoxLayout(central)
-        root.setContentsMargins(10, 10, 10, 6)
+        root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(8)
         root.addLayout(self._build_header())
         root.addWidget(self._build_save_bar())
@@ -109,93 +114,104 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
         self._snapshot: SaveSnapshot | None = None
         self._sync_note = ""
-        self.watcher = SaveWatcher(self)
         self.watcher.snapshot_ready.connect(self._on_snapshot)
         self.watcher.failed.connect(self._on_sync_failed)
         self.watcher.busy.connect(lambda msg: self.statusBar().showMessage(msg))
 
-        self._build_menu()
+        self._build_shortcuts()
         self._reload_profiles()
         self.refresh_all()
         self._start_watching()
 
     # ------------------------------------------------------------ layout
 
-    def _build_header(self) -> QHBoxLayout:
+    def _build_header(self) -> QVBoxLayout:
+        col = QVBoxLayout()
+        col.setSpacing(4)
         row = QHBoxLayout()
-        title = QLabel("Quest Tracker")
+        title = QLabel("Quest Chronicle")
         title.setObjectName("title")
         row.addWidget(title)
-        row.addSpacing(16)
+        row.addStretch(1)
+
+        self.profile_btn = QToolButton(popupMode=QToolButton.InstantPopup)
+        self.profile_btn.setToolTip("Switch, create, rename, export or import profiles")
+        self.profile_menu = QMenu(self)
+        self.profile_menu.aboutToShow.connect(self._fill_profile_menu)
+        self.profile_btn.setMenu(self.profile_menu)
+        row.addWidget(self.profile_btn)
+
+        self.settings_btn = QToolButton(popupMode=QToolButton.InstantPopup, objectName="icon", text="⚙")
+        self.settings_btn.setToolTip("Settings")
+        self.settings_btn.setMenu(self._build_settings_menu())
+        row.addWidget(self.settings_btn)
+
+        sync = QToolButton(objectName="icon", text="⟳")
+        sync.setToolTip("Read the newest save now (F5)")
+        sync.clicked.connect(self.watcher_sync)
+        row.addWidget(sync)
+        col.addLayout(row)
 
         self.overall = QProgressBar()
-        self.overall.setMinimumWidth(320)
-        row.addWidget(self.overall, 1)
-        row.addSpacing(16)
+        col.addWidget(self.overall)
+        return col
 
-        row.addWidget(_muted("Profile"))
-        self.profile_combo = QComboBox(minimumWidth=160)
-        self.profile_combo.activated.connect(self._switch_profile)
-        row.addWidget(self.profile_combo)
-
-        row.addWidget(_muted("Priority"))
-        self.priority_combo = QComboBox()
-        self.priority_combo.addItem("Save file wins", "save")
-        self.priority_combo.addItem("Manual edits win", "manual")
-        self.priority_combo.setToolTip("Which status is shown when the save and a manual edit disagree.")
-        self.priority_combo.activated.connect(self._change_priority)
-        row.addWidget(self.priority_combo)
-
-        row.addWidget(_muted("Names"))
-        self.lang_combo = QComboBox()
-        self.lang_combo.addItem("Deutsch", "de")
-        self.lang_combo.addItem("English", "en")
-        self.lang_combo.setCurrentIndex(0 if self.config.name_lang == "de" else 1)
-        self.lang_combo.activated.connect(self._change_lang)
-        row.addWidget(self.lang_combo)
-        return row
-
-    def _build_menu(self) -> None:
-        m = self.menuBar().addMenu("&Profile")
-        for text, slot, key in (
-            ("&New profile…", self._new_profile, QKeySequence.New),
-            ("&Rename profile…", self._rename_profile, None),
-            ("&Delete profile…", self._delete_profile, None),
-            (None, None, None),
-            ("&Export profile…", self._export_profile, QKeySequence("Ctrl+E")),
-            ("&Import profile…", self._import_profile, QKeySequence("Ctrl+I")),
-            (None, None, None),
-            ("&Quit", self.close, QKeySequence.Quit),
-        ):
-            if text is None:
-                m.addSeparator()
-                continue
-            act = QAction(text, self)
-            if key:
-                act.setShortcut(key)
-            act.triggered.connect(slot)
+    def _build_settings_menu(self) -> QMenu:
+        m = QMenu(self)
+        m.addSection("When save and manual edit disagree")
+        self.priority_group = QActionGroup(self)
+        self.priority_actions = {}
+        for value, text in (("save", "Save file wins"), ("manual", "Manual edits win")):
+            act = QAction(text, self, checkable=True)
+            act.triggered.connect(lambda _=False, v=value: self._change_priority(v))
+            self.priority_group.addAction(act)
+            self.priority_actions[value] = act
             m.addAction(act)
-        sm = self.menuBar().addMenu("&Save")
-        for text, slot, key in (
-            ("&Sync now", self.watcher_sync, QKeySequence.Refresh),
-            ("Choose save &folder…", self._choose_save_dir, None),
-            ("Use &auto-detected folder", self._auto_save_dir, None),
-            ("&Open save folder in file manager", self._open_save_dir, None),
-            (None, None, None),
-            ("&Unlink profile from playthrough", self._unlink_playthrough, None),
-            ("Show &unknown quests log", self._show_unknown_log, None),
+        m.addSection("Quest names")
+        lang_group = QActionGroup(self)
+        for value, text in (("de", "Deutsch"), ("en", "English")):
+            act = QAction(text, self, checkable=True, checked=self.config.name_lang == value)
+            act.triggered.connect(lambda _=False, v=value: self._change_lang(v))
+            lang_group.addAction(act)
+            m.addAction(act)
+        m.addSeparator()
+        m.addAction("Show unknown quests log", self._show_unknown_log)
+        m.addAction("Quit", QKeySequence.Quit, self.close)
+        return m
+
+    def _fill_profile_menu(self) -> None:
+        m = self.profile_menu
+        m.clear()
+        m.addSection("Playthroughs")
+        group = QActionGroup(m)
+        for name in self.store.names():
+            act = QAction(name, m, checkable=True, checked=name == self.profile.name)
+            act.triggered.connect(lambda _=False, n=name: self._switch_profile(n))
+            group.addAction(act)
+            m.addAction(act)
+        m.addSeparator()
+        m.addAction("New profile…", self._new_profile)
+        m.addAction("Rename profile…", self._rename_profile)
+        m.addAction("Delete profile…", self._delete_profile)
+        m.addSeparator()
+        m.addAction("Export profile…", self._export_profile)
+        m.addAction("Import profile…", self._import_profile)
+        m.addSeparator()
+        m.addAction("Unlink from playthrough", self._unlink_playthrough)
+
+    def _build_shortcuts(self) -> None:
+        for key, slot in (
+            (QKeySequence.New, self._new_profile),
+            (QKeySequence("Ctrl+E"), self._export_profile),
+            (QKeySequence("Ctrl+I"), self._import_profile),
+            (QKeySequence.Quit, self.close),
+            (QKeySequence.Refresh, self.watcher_sync),
+            (QKeySequence.Find, lambda: (self.tabs.setCurrentIndex(0), self.search.setFocus(),
+                                         self.search.selectAll())),
         ):
-            if text is None:
-                sm.addSeparator()
-                continue
-            act = QAction(text, self)
-            if key:
-                act.setShortcut(key)
+            act = QAction(self, shortcut=key)
             act.triggered.connect(slot)
-            sm.addAction(act)
-        find = QAction(self, shortcut=QKeySequence.Find)
-        find.triggered.connect(lambda: (self.tabs.setCurrentIndex(0), self.search.setFocus(), self.search.selectAll()))
-        self.addAction(find)
+            self.addAction(act)
 
     def _build_quests_tab(self) -> QWidget:
         splitter = QSplitter(Qt.Horizontal)
@@ -228,13 +244,13 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setStretchFactor(2, 0)
-        splitter.setSizes([210, 870, 320])
+        splitter.setSizes([250, 820, 330])
         return splitter
 
     def _build_filters(self) -> QWidget:
         w = QWidget()
-        w.setMinimumWidth(200)
-        w.setMaximumWidth(260)
+        w.setMinimumWidth(240)
+        w.setMaximumWidth(290)
         lay = QVBoxLayout(w)
         lay.setContentsMargins(4, 4, 8, 4)
 
@@ -301,7 +317,7 @@ class MainWindow(QMainWindow):
         lay.setContentsMargins(12, 4, 4, 4)
         lay.setSpacing(8)
 
-        self.d_title = QLabel(objectName="title", wordWrap=True)
+        self.d_title = QLabel(objectName="questTitle", wordWrap=True)
         self.d_alt = _muted()
         self.d_meta = _muted()
         lay.addWidget(self.d_title)
@@ -316,18 +332,31 @@ class MainWindow(QMainWindow):
         wl.addWidget(self.d_warning_text)
         lay.addWidget(self.d_warning)
 
-        st = QHBoxLayout()
         self.d_status_label = _section("Status")
-        st.addWidget(self.d_status_label)
-        self.d_status = QComboBox()
-        self.d_status.addItem("— not set manually —", None)
-        for s in STATUSES:
-            self.d_status.addItem(STATUS_LABELS[s], s)
-        self.d_status.activated.connect(self._on_manual_status)
-        st.addWidget(self.d_status, 1)
-        lay.addLayout(st)
+        lay.addWidget(self.d_status_label)
+        self.d_status = QWidget()
+        grid = QGridLayout(self.d_status)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setSpacing(4)
+        self.status_group = QButtonGroup(self)
+        self.status_buttons: dict[str, QPushButton] = {}
+        short = {"not_started": "Not started", "in_progress": "In progress",
+                 "completed": "Completed", "failed": "Failed / Missed"}
+        for i, st in enumerate(STATUSES):
+            b = QPushButton(short[st], objectName="statusButton", checkable=True)
+            b.clicked.connect(lambda _=False, v=st: self._on_manual_status(v))
+            self.status_group.addButton(b)
+            self.status_buttons[st] = b
+            grid.addWidget(b, i // 2, i % 2)
+        lay.addWidget(self.d_status)
+        eff = QHBoxLayout()
         self.d_effective = _muted()
-        lay.addWidget(self.d_effective)
+        eff.addWidget(self.d_effective, 1)
+        self.d_reset = QPushButton("use save status", objectName="linkButton")
+        self.d_reset.setCursor(Qt.PointingHandCursor)
+        self.d_reset.clicked.connect(lambda: self._on_manual_status(None))
+        eff.addWidget(self.d_reset)
+        lay.addLayout(eff)
 
         self.d_desc_label = _section("Description")
         lay.addWidget(self.d_desc_label)
@@ -361,7 +390,7 @@ class MainWindow(QMainWindow):
         bar = QFrame(objectName="saveBar")
         lay = QHBoxLayout(bar)
         lay.setContentsMargins(8, 6, 8, 6)
-        self.s_thumb = QLabel()
+        self.s_thumb = QLabel(objectName="thumb")
         self.s_thumb.setFixedSize(112, 63)
         self.s_thumb.setScaledContents(True)
         lay.addWidget(self.s_thumb)
@@ -375,12 +404,13 @@ class MainWindow(QMainWindow):
         for w in (self.s_title, self.s_info, self.s_warn):
             text.addWidget(w)
         lay.addLayout(text, 1)
-        sync = QPushButton("Sync now")
-        sync.clicked.connect(self.watcher_sync)
-        folder = QPushButton("Save folder…")
-        folder.clicked.connect(self._choose_save_dir)
-        lay.addWidget(sync)
-        lay.addWidget(folder)
+        folder = QToolButton(popupMode=QToolButton.InstantPopup, text="Save folder ▾")
+        fm = QMenu(self)
+        fm.addAction("Choose save folder…", self._choose_save_dir)
+        fm.addAction("Use auto-detected folder", self._auto_save_dir)
+        fm.addAction("Open in file manager", self._open_save_dir)
+        folder.setMenu(fm)
+        lay.addWidget(folder, 0, Qt.AlignTop)
         self._synced_timer = QTimer(self, interval=15_000)
         self._synced_timer.timeout.connect(self._update_save_bar)
         self._synced_timer.start()
@@ -693,11 +723,14 @@ class MainWindow(QMainWindow):
                 text += "<br>" + self._sources_html(q)
                 self.d_warning_text.setText(text)
             manual = self.profile.manual_status.get(q["id"])
-            self.d_status.setCurrentIndex(self.d_status.findData(manual) if manual else 0)
             saved = self.profile.save_status.get(q["id"])
             eff = self.profile.status(q["id"])
-            self.d_effective.setText(
-                f"Shown: {STATUS_LABELS[eff]} · From save: {STATUS_LABELS[saved] if saved else '—'}")
+            self.status_buttons[eff].setChecked(True)
+            src = f"From save: {STATUS_LABELS[saved] if saved else '—'}"
+            if manual:
+                src += f" · set by hand: {STATUS_LABELS[manual]}"
+            self.d_effective.setText(src)
+            self.d_reset.setVisible(manual is not None)
             desc = q.get("description_de") if lang == "de" else q.get("description")
             # Game texts contain simple markup such as <br>.
             self.d_desc.setHtml(desc or q.get("description") or "<i>No description in the game files.</i>")
@@ -706,10 +739,10 @@ class MainWindow(QMainWindow):
         finally:
             self._loading_detail = False
 
-    def _on_manual_status(self) -> None:
+    def _on_manual_status(self, status: str | None) -> None:
         if not self._current_id:
             return
-        self.profile.set_manual(self._current_id, self.d_status.currentData())
+        self.profile.set_manual(self._current_id, status)
         self._persist()
         self.refresh_all()
 
@@ -733,11 +766,8 @@ class MainWindow(QMainWindow):
         self.store.save(self.profile)
 
     def _reload_profiles(self) -> None:
-        self.profile_combo.clear()
-        for n in self.store.names():
-            self.profile_combo.addItem(n)
-        self.profile_combo.setCurrentText(self.profile.name)
-        self.priority_combo.setCurrentIndex(self.priority_combo.findData(self.profile.priority))
+        self.profile_btn.setText(f"{self.profile.name} ▾")
+        self.priority_actions[self.profile.priority].setChecked(True)
         self.config.active_profile = self.profile.name
         self.config.save()
 
@@ -750,18 +780,17 @@ class MainWindow(QMainWindow):
         self.refresh_all()
         self._update_save_bar()
 
-    def _switch_profile(self) -> None:
-        name = self.profile_combo.currentText()
+    def _switch_profile(self, name: str) -> None:
         if name and name != self.profile.name:
             self._set_profile(self.store.load(name))
 
-    def _change_priority(self) -> None:
-        self.profile.priority = self.priority_combo.currentData()
+    def _change_priority(self, value: str) -> None:
+        self.profile.priority = value
         self._persist()
         self.refresh_all()
 
-    def _change_lang(self) -> None:
-        self.config.name_lang = self.lang_combo.currentData()
+    def _change_lang(self, value: str) -> None:
+        self.config.name_lang = value
         self.config.save()
         self.refresh_all()
 

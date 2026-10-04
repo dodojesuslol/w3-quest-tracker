@@ -25,6 +25,8 @@ def main(argv: list[str] | None = None) -> int:
     app.setApplicationName(APP_ID)
     app.setApplicationDisplayName("Witcher 3 Quest Tracker")
     app.setStyle("Fusion")
+    theme.load_fonts()
+    app.setFont(theme.body_font())
     app.setPalette(theme.palette())
     app.setStyleSheet(theme.STYLESHEET)
     bundled_icon = Path(__file__).resolve().parent.parent / "data" / "w3-quest-tracker.svg"
