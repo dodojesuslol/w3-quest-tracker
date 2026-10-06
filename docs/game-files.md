@@ -1,7 +1,7 @@
 # Game file formats used by the quest database builder
 
-`src/w3qt/data/quests.json` is built only from the installed game (Steam, build 5.0).
-Nothing in it is typed in by hand. Rebuild it with `tools/build_quests.py` (source checkout) or `w3-quest-tracker-build-quests` (installed).
+`quests.json` (in `~/.local/share/w3-quest-tracker/`) is built only from the installed game (Steam, build 5.0).
+Nothing in it is typed in by hand. The app builds it on first start; rebuild it with `tools/build_quests.py` (source checkout) or `w3-quest-tracker-build-quests` (installed).
 
 ## Bundles (`content/content0/bundles/*.bundle`)
 

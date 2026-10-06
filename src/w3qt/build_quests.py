@@ -5,10 +5,12 @@ quest_levels.csv and the .w3strings localisation. Fields the game files do
 not contain (quest giver, missable, prerequisites) are left null and listed
 in "unverified_fields".
 
+The app runs this on first start; the file is never distributed because it
+contains game text.
+
 Usage: w3-quest-tracker-build-quests [--game-dir DIR] [-o FILE]
 
-Default output: the package's data/quests.json in a source checkout, otherwise
-~/.local/share/w3-quest-tracker/quests.json (which then overrides the bundled file).
+Default output: ~/.local/share/w3-quest-tracker/quests.json
 """
 
 from __future__ import annotations
@@ -17,7 +19,6 @@ import argparse
 import csv
 import io
 import json
-import os
 import re
 import sys
 from pathlib import Path
@@ -135,22 +136,12 @@ def expansion_of(q: dict) -> str:
     return "base"
 
 
-def default_output() -> Path:
-    bundled = Path(__file__).resolve().parent / "data"
-    if os.access(bundled, os.W_OK):
-        return bundled / "quests.json"
-    return paths.data_dir() / "quests.json"
+def is_game_dir(game: Path) -> bool:
+    return (game / "content" / "content0" / "bundles").is_dir()
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--game-dir", type=Path)
-    ap.add_argument("-o", "--output", type=Path, default=default_output())
-    args = ap.parse_args()
-    game = args.game_dir or find_game_dir()
-    if game is None:
-        print("error: Witcher 3 installation not found; pass --game-dir", file=sys.stderr)
-        return 1
+def build(game: Path, output: Path) -> tuple[int, int]:
+    """Write quests.json for the installation in `game`; returns (quests, skipped)."""
     content = game / "content" / "content0"
     bundles = {n: Bundle(content / "bundles" / f"{n}.bundle") for n in BUNDLES}
     quests, groups = collect(bundles)
@@ -223,9 +214,24 @@ def main() -> int:
         "quests": out,
         "skipped": skipped,
     }
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n")
-    print(f"wrote {len(out)} quests ({len(skipped)} skipped) to {args.output}")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    tmp = output.with_suffix(".tmp")
+    tmp.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n")
+    tmp.replace(output)
+    return len(out), len(skipped)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--game-dir", type=Path)
+    ap.add_argument("-o", "--output", type=Path, default=paths.data_dir() / "quests.json")
+    args = ap.parse_args()
+    game = args.game_dir or find_game_dir()
+    if game is None:
+        print("error: Witcher 3 installation not found; pass --game-dir", file=sys.stderr)
+        return 1
+    n, skipped = build(game, args.output)
+    print(f"wrote {n} quests ({skipped} skipped) to {args.output}")
     return 0
 
 

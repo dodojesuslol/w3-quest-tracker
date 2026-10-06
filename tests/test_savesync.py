@@ -8,12 +8,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from w3qt import questdata, savesync  # noqa: E402
+from w3qt import savesync  # noqa: E402
 from w3qt.profiles import Profile  # noqa: E402
 
-FIXTURES = Path(__file__).parent / "fixtures" / "saves"
-MANUAL = "ManualSave_11b6cd_7ea48c00_411cb11"
-CHECKPOINT = "CheckPoint_11b6cd_7ea48c00_3cd014e"
+from support import CHECKPOINT, FIXTURES, MANUAL, needs_game, needs_saves, quest_db  # noqa: E402
 
 
 def copy_save(stem: str, dest: Path, mtime: float) -> Path:
@@ -25,6 +23,7 @@ def copy_save(stem: str, dest: Path, mtime: float) -> Path:
     return dest / f"{stem}.sav"
 
 
+@needs_saves
 class TestNewestSnapshot(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -61,10 +60,12 @@ class TestNewestSnapshot(unittest.TestCase):
         self.assertEqual(p.read_bytes(), before)
 
 
+@needs_game
+@needs_saves
 class TestApply(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.db = questdata.load()
+        cls.db = quest_db()
         cls.snap = savesync.load_snapshot(FIXTURES / f"{MANUAL}.sav")
 
     def test_apply_binds_playthrough(self):

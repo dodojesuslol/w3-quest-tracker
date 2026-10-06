@@ -10,7 +10,8 @@ from w3qt import lz4block, savefile  # noqa: E402
 from w3qt.savedata import facts, journal_entries, metadata, quest_tree  # noqa: E402
 from w3qt.savefile import SaveFormatError, open_save, parse_bytes, read_cstring  # noqa: E402
 
-FIXTURES = Path(__file__).parent / "fixtures" / "saves"
+from support import FIXTURES, needs_saves  # noqa: E402
+
 NEXTGEN = FIXTURES / "ManualSave_11b6cd_7ea48c00_411cb11.sav"   # Toussaint, level 38
 CHECKPOINT = FIXTURES / "CheckPoint_11b6cd_7ea48c00_3cd014e.sav"  # same run, level 37
 
@@ -42,6 +43,7 @@ class TestCString(unittest.TestCase):
         self.assertEqual(read_cstring(b"\x02h\x00i\x00", 0), ("hi", 5))
 
 
+@needs_saves
 class TestContainer(unittest.TestCase):
     def test_all_fixtures_parse(self):
         saves = all_saves()
@@ -71,6 +73,7 @@ class TestContainer(unittest.TestCase):
                 open_save(NEXTGEN)
 
 
+@needs_saves
 class TestMetadata(unittest.TestCase):
     def test_nextgen(self):
         m = metadata(open_save(NEXTGEN))
@@ -83,6 +86,7 @@ class TestMetadata(unittest.TestCase):
         self.assertEqual((m["region"], m["player_level"]), ("Toussaint", 37))
 
 
+@needs_saves
 class TestJournal(unittest.TestCase):
     def test_statuses_known(self):
         for p in all_saves():
@@ -115,6 +119,7 @@ class TestJournal(unittest.TestCase):
         self.assertLess(len(facts(open_save(CHECKPOINT))), len(facts(open_save(NEXTGEN))))
 
 
+@needs_saves
 class TestFacts(unittest.TestCase):
     def test_parse_consumes_stream(self):
         for p in all_saves():

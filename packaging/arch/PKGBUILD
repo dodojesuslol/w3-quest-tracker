@@ -1,18 +1,17 @@
-# Builds the package from the local git checkout this PKGBUILD lives in.
-# Only committed changes are packaged.
+# Builds the package from the GitHub repository (latest commit on main).
 pkgname=w3-quest-tracker-git
 _name=w3-quest-tracker
 pkgver=r22.g111fb4d
 pkgrel=1
 pkgdesc="Quest tracker for The Witcher 3 that follows your newest save file"
 arch=('any')
-license=('unknown')
+license=('MIT' 'OFL-1.1')
 depends=('python' 'pyside6' 'python-watchdog')
 optdepends=('python-lz4: faster save decompression')
 makedepends=('git')
 provides=("$_name")
 conflicts=("$_name")
-source=("$_name::git+file://$(realpath "$startdir/../..")")
+source=("$_name::git+https://github.com/dodojesuslol/w3-quest-tracker.git")
 sha256sums=('SKIP')
 
 pkgver() {
@@ -39,5 +38,5 @@ package() {
   install -Dm644 packaging/w3-quest-tracker.desktop -t "$pkgdir/usr/share/applications/"
   install -Dm644 src/w3qt/data/w3-quest-tracker.svg -t "$pkgdir/usr/share/icons/hicolor/scalable/apps/"
   install -Dm644 README.md docs/*.md -t "$pkgdir/usr/share/doc/$_name/"
-  install -Dm644 src/w3qt/data/fonts/OFL-*.txt -t "$pkgdir/usr/share/licenses/$pkgname/"
+  install -Dm644 LICENSE src/w3qt/data/fonts/OFL-*.txt -t "$pkgdir/usr/share/licenses/$pkgname/"
 }

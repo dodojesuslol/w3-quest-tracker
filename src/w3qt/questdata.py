@@ -1,4 +1,4 @@
-"""Quest database (data/quests.json) and mapping of save journal entries onto it."""
+"""Quest database (quests.json, built from the game) and mapping of save journal entries onto it."""
 
 from __future__ import annotations
 
@@ -9,14 +9,14 @@ from pathlib import Path
 from . import paths
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
-BUNDLED_PATH = DATA_DIR / "quests.json"
 MISSABLE_PATH = DATA_DIR / "missable.json"
 
 
 def default_path() -> Path:
-    """A quests.json rebuilt into the user data dir overrides the bundled one."""
-    user = paths.data_dir() / "quests.json"
-    return user if user.is_file() else BUNDLED_PATH
+    """Built from the installed game on first start (see build_quests)."""
+    return paths.data_dir() / "quests.json"
+
+
 OVERLAY_FIELDS = ("missable", "missable_reason", "point_of_no_return", "sources", "verified", "note")
 
 # save journal status -> tracker status
@@ -54,17 +54,9 @@ class QuestDB:
 
 
 def load(path: Path | str | None = None, missable_path: Path | str | None = MISSABLE_PATH) -> QuestDB:
-    if path is None:
-        try:
-            doc = json.loads(default_path().read_text())
-            quests = doc["quests"]
-        except (OSError, ValueError, KeyError, TypeError):
-            # a broken rebuilt copy in the user data dir must not stop the app
-            doc = json.loads(BUNDLED_PATH.read_text())
-            quests = doc["quests"]
-    else:
-        doc = json.loads(Path(path).read_text())
-        quests = doc["quests"]
+    """Raises OSError, ValueError, KeyError or TypeError for a missing or broken file."""
+    doc = json.loads(Path(path or default_path()).read_text())
+    quests = doc["quests"]
     ponr: list[dict] = []
     if missable_path and Path(missable_path).is_file():
         overlay = json.loads(Path(missable_path).read_text())

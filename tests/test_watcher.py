@@ -14,10 +14,11 @@ try:
 except ImportError:  # pragma: no cover
     QApplication = None
 
-FIXTURES = Path(__file__).parent / "fixtures" / "saves"
+from support import FIXTURES, needs_saves  # noqa: E402
 
 
 @unittest.skipUnless(QApplication, "PySide6 not installed")
+@needs_saves
 class TestSaveWatcher(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

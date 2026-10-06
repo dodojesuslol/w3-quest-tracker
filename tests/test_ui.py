@@ -14,8 +14,11 @@ try:
 except ImportError:  # pragma: no cover
     QApplication = None
 
+from support import needs_game, quest_db  # noqa: E402
+
 
 @unittest.skipUnless(QApplication, "PySide6 not installed")
+@needs_game
 class TestMainWindow(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -35,11 +38,10 @@ class TestMainWindow(unittest.TestCase):
         cls.tmp.cleanup()
 
     def make_window(self):
-        from w3qt import questdata
         from w3qt.config import Config
         from w3qt.profiles import ProfileStore
         from w3qt.ui.main_window import MainWindow, profiles_dir
-        return MainWindow(questdata.load(), ProfileStore(profiles_dir()), Config.load())
+        return MainWindow(quest_db(), ProfileStore(profiles_dir()), Config.load())
 
     def test_filter_select_and_set_status(self):
         w = self.make_window()

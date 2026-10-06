@@ -8,3 +8,9 @@ packaging/arch/src/
 packaging/arch/pkg/
 packaging/arch/w3-quest-tracker/
 packaging/arch/*.pkg.tar.*
+
+# Personal saves for the save tests (see tests/support.py)
+tests/fixtures/saves/
+# Game text; built from the installed game on first start
+src/w3qt/data/quests.json
+.ruff_cache/

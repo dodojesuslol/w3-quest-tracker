@@ -78,13 +78,13 @@ The status lives in `CJournalManager / JActiveEntries`, which is a list of
 The path depth gives the entry type. Depth 1 is a quest group, for example
 `questact1.journal` or `minorquests.journal`. Depth 2 is a quest, depth 3 a
 phase, depth 4 an objective and depth 5 a sub-objective. This hierarchy
-is confirmed against the fixtures: each depth-2 entry is a quest .journal
+is confirmed against real saves: each depth-2 entry is a quest .journal
 file, and its children are its phases and objectives.
 
 Every quest seen so far has its own `.journal` file, for example
 `gameplay\journal\quests\q001yennsearch.journal`. The file name is a stable,
 readable identifier. Combined with the GUID, it is the key for mapping to
-`src/w3qt/data/quests.json`.
+`quests.json`.
 
 Quests that were never discovered have no entry. The tracker cannot tell
 "not started" apart from "not yet visible in the journal".

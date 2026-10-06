@@ -6,9 +6,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from w3qt import filtering, questdata  # noqa: E402
+from w3qt import filtering  # noqa: E402
 from w3qt.filtering import Criteria  # noqa: E402
 from w3qt.profiles import Profile, ProfileStore  # noqa: E402
+
+from support import needs_game, quest_db  # noqa: E402
 
 
 class TestProfile(unittest.TestCase):
@@ -53,10 +55,11 @@ class TestProfile(unittest.TestCase):
                 ProfileStore(Path(d) / "p").import_file(f)
 
 
+@needs_game
 class TestFiltering(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.db = questdata.load()
+        cls.db = quest_db()
 
     def test_overlay_merged(self):
         q = self.db.by_id["sq202yen"]

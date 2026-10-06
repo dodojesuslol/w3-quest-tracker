@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rebuild src/w3qt/data/quests.json from the installed game (see w3qt.build_quests)."""
+"""Rebuild ~/.local/share/w3-quest-tracker/quests.json from the installed game (see w3qt.build_quests)."""
 import sys
 from pathlib import Path
 
