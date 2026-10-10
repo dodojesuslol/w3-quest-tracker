@@ -11,7 +11,7 @@ from w3qt import questdata  # noqa: E402
 from w3qt.build_quests import build  # noqa: E402
 from w3qt.gamefiles.locate import find_game_dir  # noqa: E402
 
-# Put a few of your own version-66 saves here to run the save tests; the
+# Put a few of your own version-66/67 saves here to run the save tests; the
 # folder is git-ignored. Expected names match the original playthrough.
 FIXTURES = Path(__file__).parent / "fixtures" / "saves"
 MANUAL = "ManualSave_11b6cd_7ea48c00_411cb11"

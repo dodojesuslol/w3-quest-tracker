@@ -6,8 +6,8 @@ meaning is not confirmed.
 
 ## Scope
 
-Only the current next-gen/REDkit format is supported: save_version 66,
-game_version 29, build 5.0. The parser rejects other versions
+Only the current next-gen/REDkit format is supported: save_version 66
+(67 since the 2026-10-09 patch, same layout), game_version 29, build 5.0. The parser rejects other versions
 (`SUPPORTED_SAVE_VERSIONS`). The original release and older next-gen saves
 are out of scope.
 

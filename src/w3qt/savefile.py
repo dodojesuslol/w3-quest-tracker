@@ -1,6 +1,6 @@
 """Read-only parser for The Witcher 3 (REDengine 3) .sav files.
 
-Layout as reverse-engineered from real saves (save version 66, game 5.0):
+Layout as reverse-engineered from real saves (save versions 66-67, game 5.0):
 
 Container (on disk)
     "SNFHFZLC"                  magic
@@ -39,7 +39,8 @@ STRING_TABLE_MAGIC = b"MANU"
 FOOTER_MAGIC = b"SE"
 STRUCTURED_TAGS = (b"BS", b"VL", b"SS", b"OP")
 # Only the current next-gen/REDkit format (game 4.04+/5.0) is supported.
-SUPPORTED_SAVE_VERSIONS = (66,)
+# 67 came with the 2026-10-09 patch; the layout is unchanged.
+SUPPORTED_SAVE_VERSIONS = (66, 67)
 
 
 class SaveFormatError(Exception):

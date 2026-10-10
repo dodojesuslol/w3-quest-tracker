@@ -16,7 +16,7 @@ your progress live from your newest save file.
 - Works on Wayland and X11.
 
 Only the current game version is supported: next-gen/REDkit build 5.0, save
-version 66. The app skips older saves.
+version 66/67. The app skips older saves.
 
 ## Install (Arch Linux)
 
@@ -162,7 +162,7 @@ tools/dump_save.py SAVE.sav --tree        # inspect a save as JSON
 ```
 
 - **Sample saves:** Save files are not part of the repository. Tests that
-  need them skip themselves unless `tests/fixtures/saves/` holds version-66
+  need them skip themselves unless `tests/fixtures/saves/` holds version-66/67
   saves with the names listed in `tests/support.py`.
 - **Game file tests:** Tests that need the installed game (including
   everything that uses the quest database) skip themselves when the game is

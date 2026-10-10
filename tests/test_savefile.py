@@ -51,7 +51,7 @@ class TestContainer(unittest.TestCase):
         for p in saves:
             with self.subTest(p.name):
                 s = open_save(p)
-                self.assertEqual(s.save_version, 66)
+                self.assertIn(s.save_version, savefile.SUPPORTED_SAVE_VERSIONS)
                 self.assertIsNotNone(s.block("CJournalManager"))
 
     def test_rejects_non_save(self):
